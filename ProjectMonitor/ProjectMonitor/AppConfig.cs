@@ -34,7 +34,7 @@ namespace ProjectMonitor.Api
                 HFConnectionString = config.HFConnectionString;
                 ChatId = config.ChatId;
                 MMSApiKey = config.MMSApiKey;
-                Log.Information("Config loaded");
+                Log.Information("Config loaded from database");
             }
         }
     }
