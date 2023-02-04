@@ -6,16 +6,16 @@ namespace ProjectMonitor.Api.Database.Models
     public class FinanceManager
     {
         [Key]
-        [Column("mode")]
+        [Required]
         public string Mode { get; set; }
 
-        [Column("lastTransactionUpdate")]
+        [Required]
         public DateTime LastTransactionUpdate { get; set; }
 
-        [Column("lastAPIRefresh")]
+        [Required]
         public DateTime LastAPIRefresh { get; set; }
 
-        [Column("lastAPIRefreshStatusCode")]
+        [Required]
         public string LastAPIRefreshStatusCode { get; set; }
     }
 }

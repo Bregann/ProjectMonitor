@@ -6,13 +6,16 @@ namespace ProjectMonitor.Api.Database.Models
     public class SystemHealth
     {
         [Key]
-        [Column("systemName")]
+        [Required]
         public string SystemName { get; set; }
 
-        [Column("systemUptime")]
+        [Required]
         public TimeSpan SystemUptime { get; set; }
 
-        [Column("lastUpdate")]
+        [Required]
         public DateTime LastUpdate { get; set; }
+
+        [Required]
+        public bool SystemRunning { get; set; }
     }
 }

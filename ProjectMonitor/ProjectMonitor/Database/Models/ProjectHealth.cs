@@ -6,22 +6,22 @@ namespace ProjectMonitor.Api.Database.Models
     public class ProjectHealth
     {
         [Key]
-        [Column("projectName")]
+        [Required]
         public string ProjectName { get; set; }
 
-        [Column("cpuUsage")]
+        [Required]
         public double CPUUsage { get; set; }
 
-        [Column("ramUsage")]
+        [Required]
         public long RAMUsage { get; set; }
 
-        [Column("projectUptime")]
+        [Required]
         public TimeSpan ProjectUptime { get; set; }
 
-        [Column("lastUpdate")]
+        [Required]
         public DateTime LastUpdate { get; set; }
 
-        [Column("projectRunning")]
+        [Required]
         public bool ProjectRunning { get; set; }
     }
 }

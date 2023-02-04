@@ -3,7 +3,8 @@ using ProjectMonitor.Api.Data;
 using ProjectMonitor.Api.Data.Enums;
 using ProjectMonitor.Api.Database.Context;
 using ProjectMonitor.Api.Database.Models;
-using ProjectMonitor.Api.Models.UpdateStatus;
+using ProjectMonitor.Api.Dtos.RequestDtos.UpdateStatus;
+using Serilog;
 
 namespace ProjectMonitor.Api.Controllers.UpdateStatus
 {
@@ -12,112 +13,100 @@ namespace ProjectMonitor.Api.Controllers.UpdateStatus
     public class CommonUpdatesController : ControllerBase
     {
         [HttpPost("AddAndUpdateProjectHealthStatus")]
-        public IActionResult AddAndUpdateProjectHealthStatus(AddAndUpdateProjectHealthStatusDto dto)
+        public IActionResult AddAndUpdateProjectHealthStatus(AddAndUpdateProjectHealthStatusRequestDto requestDto)
         {
-            if (Request.Headers["ProjectApiKey"].Count == 0)
-            {
-                return BadRequest();
-            }
+            string apiKey = Request.Headers.Authorization;
 
-            string header = Request.Headers["ProjectApiKey"];
-
-            //Make sure the API key is the same as the one in the API
-            if (header != Config.Key)
+            if (apiKey == null || apiKey != AppConfig.ApiKey)
             {
+                Log.Information($"[Project Monitor Api] AddAndUpdateProjectHealthStatus - request missing api key or is invalid");
                 return BadRequest();
             }
 
             using (var context = new DatabaseContext())
             {
                 //Check if the project already exists
-                var project = context.ProjectHealth.Where(x => x.ProjectName == dto.ProjectName).FirstOrDefault();
+                var project = context.ProjectHealth.Where(x => x.ProjectName == requestDto.ProjectName).FirstOrDefault();
 
                 //Add it if it doesn't exist
                 if (project == null)
                 {
                     context.ProjectHealth.Add(new ProjectHealth
                     {
-                        ProjectName = dto.ProjectName,
+                        ProjectName = requestDto.ProjectName,
                         ProjectRunning = true,
-                        ProjectUptime = dto.ProjectUptime,
+                        ProjectUptime = requestDto.ProjectUptime,
                         LastUpdate = DateTime.UtcNow,
-                        CPUUsage = dto.CPUUsage,
-                        RAMUsage = dto.RAMUsage
+                        CPUUsage = requestDto.CPUUsage,
+                        RAMUsage = requestDto.RAMUsage
                     });
+
+                    Log.Information($"[Project Monitor Api] AddAndUpdateProjectHealthStatus - project {requestDto.ProjectName} added");
                 }
                 else
                 {
                     //Check if the project went down by comparing the uptime
-                    if (dto.ProjectUptime < project.ProjectUptime)
+                    if (requestDto.ProjectUptime.TotalSeconds < 60)
                     {
-                        ErrorMonitoring.AddNewError(ErrorTypes.ProjectCrashed.ToString(), "Project crashed unexpectedly", dto.ProjectName);
+                        Log.Information($"[Project Monitor Api] AddAndUpdateProjectHealthStatus - Project crash detected in {project.ProjectName}- old uptime: {project.ProjectUptime} new uptime: {requestDto.ProjectUptime}");
+                        ErrorMonitoring.AddNewError(ErrorTypes.ProjectCrashed.ToString(), "Project crashed unexpectedly", requestDto.ProjectName);
                     }
 
-                    project.ProjectUptime = dto.ProjectUptime;
+                    project.ProjectUptime = requestDto.ProjectUptime;
                     project.ProjectRunning = true;
                     project.LastUpdate = DateTime.UtcNow;
-                    project.CPUUsage = dto.CPUUsage;
-                    project.RAMUsage = dto.RAMUsage;
+                    project.CPUUsage = requestDto.CPUUsage;
+                    project.RAMUsage = requestDto.RAMUsage;
 
                     context.ProjectHealth.Update(project);
                 }
 
                 context.SaveChanges();
+                Log.Information($"[Project Monitor Api] AddAndUpdateProjectHealthStatus - project {requestDto.ProjectName} updated");
             }
 
             return Ok();
         }
 
         [HttpPost("AddAndUpdateSystemData")]
-        public IActionResult AddAndUpdateSystemData(AddAndUpdateSystemDataDto dto)
+        public IActionResult AddAndUpdateSystemData(AddAndUpdateSystemDataRequestDto requestDto)
         {
-            if (Request.Headers["ProjectApiKey"].Count == 0)
-            {
-                return BadRequest();
-            }
+            string apiKey = Request.Headers.Authorization;
 
-            string header = Request.Headers["ProjectApiKey"];
-
-            //Make sure the API key is the same as the one in the API
-            if (header != Config.Key)
+            if (apiKey == null || apiKey != AppConfig.ApiKey)
             {
+                Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - request missing api key or is invalid");
                 return BadRequest();
             }
 
             using (var context = new DatabaseContext())
             {
-                var system = context.SystemHealth.Where(x => x.SystemName == dto.SystemName).FirstOrDefault();
+                var system = context.SystemHealth.Where(x => x.SystemName == requestDto.SystemName).FirstOrDefault();
 
                 //Add it if it doesn't exist
                 if (system == null)
                 {
                     context.SystemHealth.Add(new SystemHealth
                     {
-                        SystemName = dto.SystemName,
-                        SystemUptime = dto.SystemUptime,
+                        SystemName = requestDto.SystemName,
+                        SystemUptime = requestDto.SystemUptime,
                         LastUpdate = DateTime.UtcNow,
                     });
+
+                    Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - new system added {requestDto.SystemName}");
                 }
                 else
                 {
-                    system.SystemUptime = dto.SystemUptime;
+                    system.SystemUptime = requestDto.SystemUptime;
                     system.LastUpdate = DateTime.UtcNow;
-
                     context.SystemHealth.Update(system);
                 }
 
                 context.SaveChanges();
+                Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - system updated {requestDto.SystemName}");
             }
 
             return Ok();
         }
-
-        [HttpPost("SendAlert")]
-        public IActionResult SendAlert([FromBody] string message)
-        {
-            return Ok();
-        }
     }
-
-
 }

@@ -25,56 +25,43 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.BreganTwitchBot", b =>
                 {
                     b.Property<string>("Mode")
-                        .HasColumnType("text")
-                        .HasColumnName("mode");
+                        .HasColumnType("text");
 
                     b.Property<bool>("DailyPointsEnabled")
-                        .HasColumnType("boolean")
-                        .HasColumnName("dailyPointsEnabled");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("DiscordConnectionStatus")
-                        .HasColumnType("boolean")
-                        .HasColumnName("discordConnectionStatus");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastDiscordLeaderboardsUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastDiscordLeaderboardsUpdate");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LastHoursUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastHoursUpdate");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("StreamAnnounced")
-                        .HasColumnType("boolean")
-                        .HasColumnName("streamAnnounced");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("StreamLiveTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("streamLiveTime");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("StreamStatus")
-                        .HasColumnType("boolean")
-                        .HasColumnName("streamStatus");
+                        .HasColumnType("boolean");
 
                     b.Property<TimeSpan>("StreamUptime")
-                        .HasColumnType("interval")
-                        .HasColumnName("streamUptime");
+                        .HasColumnType("interval");
 
                     b.Property<DateTime>("TwitchApiKeyLastRefreshTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("twitchApiKeyLastRefreshTime");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("TwitchIRCConnectionStatus")
-                        .HasColumnType("boolean")
-                        .HasColumnName("twitchIRCConnectionStatus");
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("TwitchPubSubConnectionStatus")
-                        .HasColumnType("boolean")
-                        .HasColumnName("twitchPubSubConnectionStatus");
+                        .HasColumnType("boolean");
 
                     b.Property<long>("UsersInStream")
-                        .HasColumnType("bigint")
-                        .HasColumnName("usersInStream");
+                        .HasColumnType("bigint");
 
                     b.HasKey("Mode");
 
@@ -118,20 +105,16 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.CatBot", b =>
                 {
                     b.Property<string>("Mode")
-                        .HasColumnType("text")
-                        .HasColumnName("mode");
+                        .HasColumnType("text");
 
                     b.Property<bool>("DiscordConnectionStatus")
-                        .HasColumnType("boolean")
-                        .HasColumnName("discordConnectionStatus");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastDiscordPost")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastDiscordPost");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("LastTweet")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastTweet");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Mode");
 
@@ -154,49 +137,114 @@ namespace ProjectMonitor.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ProjectMonitor.Api.Database.Models.Config", b =>
+                {
+                    b.Property<int>("RowId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("RowId"));
+
+                    b.Property<string>("ApiKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ChatId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FromEmailAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FromEmailAddressName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("HFConnectionString")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("MMSApiKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PMErrorsResolvedTemplateId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PMErrorsTemplateId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToEmailAddress")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ToEmailAddressName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("RowId");
+
+                    b.ToTable("Config");
+
+                    b.HasData(
+                        new
+                        {
+                            RowId = 1,
+                            ApiKey = "",
+                            ChatId = 0,
+                            FromEmailAddress = "",
+                            FromEmailAddressName = "",
+                            HFConnectionString = "",
+                            MMSApiKey = "",
+                            PMErrorsResolvedTemplateId = "",
+                            PMErrorsTemplateId = "",
+                            ToEmailAddress = "",
+                            ToEmailAddressName = ""
+                        });
+                });
+
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.Errors", b =>
                 {
                     b.Property<int>("ErrorId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("errorId");
+                        .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ErrorId"));
 
-                    b.Property<bool>("AlertSent")
-                        .HasColumnType("boolean")
-                        .HasColumnName("alertSent");
-
                     b.Property<DateTime?>("DateEnded")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("dateEnded");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("DateStarted")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("dateStarted");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<TimeSpan>("DowntimeDuration")
-                        .HasColumnType("interval")
-                        .HasColumnName("downtimeDuration");
+                        .HasColumnType("interval");
+
+                    b.Property<bool>("EmailAlertSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("EmailResolvedAlertSent")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("ErrorDescription")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("errorDescription");
+                        .HasColumnType("text");
 
                     b.Property<string>("ErrorType")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("errorType");
+                        .HasColumnType("text");
 
                     b.Property<string>("ProjectName")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("projectName");
+                        .HasColumnType("text");
 
-                    b.Property<bool>("ResolvedAlertSent")
-                        .HasColumnType("boolean")
-                        .HasColumnName("resolvedAlertSent");
+                    b.Property<bool>("TextAlertSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("TextResolvedAlertSent")
+                        .HasColumnType("boolean");
 
                     b.HasKey("ErrorId");
 
@@ -206,21 +254,17 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.FinanceManager", b =>
                 {
                     b.Property<string>("Mode")
-                        .HasColumnType("text")
-                        .HasColumnName("mode");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("LastAPIRefresh")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastAPIRefresh");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastAPIRefreshStatusCode")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("lastAPIRefreshStatusCode");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("LastTransactionUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastTransactionUpdate");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Mode");
 
@@ -246,28 +290,22 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.ProjectHealth", b =>
                 {
                     b.Property<string>("ProjectName")
-                        .HasColumnType("text")
-                        .HasColumnName("projectName");
+                        .HasColumnType("text");
 
                     b.Property<double>("CPUUsage")
-                        .HasColumnType("double precision")
-                        .HasColumnName("cpuUsage");
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime>("LastUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastUpdate");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("ProjectRunning")
-                        .HasColumnType("boolean")
-                        .HasColumnName("projectRunning");
+                        .HasColumnType("boolean");
 
                     b.Property<TimeSpan>("ProjectUptime")
-                        .HasColumnType("interval")
-                        .HasColumnName("projectUptime");
+                        .HasColumnType("interval");
 
                     b.Property<long>("RAMUsage")
-                        .HasColumnType("bigint")
-                        .HasColumnName("ramUsage");
+                        .HasColumnType("bigint");
 
                     b.HasKey("ProjectName");
 
@@ -277,24 +315,19 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.RetroAchievementsTracker", b =>
                 {
                     b.Property<string>("Mode")
-                        .HasColumnType("text")
-                        .HasColumnName("mode");
+                        .HasColumnType("text");
 
                     b.Property<long>("GamesUpdated")
-                        .HasColumnType("bigint")
-                        .HasColumnName("gamesUpdated");
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime>("LastGameUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastGameUpdate");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("TotalGames")
-                        .HasColumnType("bigint")
-                        .HasColumnName("totalGames");
+                        .HasColumnType("bigint");
 
                     b.Property<long>("TotalUsers")
-                        .HasColumnType("bigint")
-                        .HasColumnName("totalUsers");
+                        .HasColumnType("bigint");
 
                     b.HasKey("Mode");
 
@@ -322,16 +355,16 @@ namespace ProjectMonitor.Api.Migrations
             modelBuilder.Entity("ProjectMonitor.Api.Database.Models.SystemHealth", b =>
                 {
                     b.Property<string>("SystemName")
-                        .HasColumnType("text")
-                        .HasColumnName("systemName");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("LastUpdate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("lastUpdate");
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("SystemRunning")
+                        .HasColumnType("boolean");
 
                     b.Property<TimeSpan>("SystemUptime")
-                        .HasColumnType("interval")
-                        .HasColumnName("systemUptime");
+                        .HasColumnType("interval");
 
                     b.HasKey("SystemName");
 

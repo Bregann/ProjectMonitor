@@ -1,6 +1,6 @@
 ﻿namespace ProjectMonitor.Api.Models.GetData
 {
-    public class GetActiveErrorsDto
+    public class GetActiveErrorsResponseDto
     {
         public int ErrorId { get; set; }
         public string ProjectName { get; set; }

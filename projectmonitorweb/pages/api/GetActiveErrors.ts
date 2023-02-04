@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { DoGet } from '../../Helpers/apiHelper'
 import { ActiveErrors, ErrorData } from '../../types/activeErrors'
 
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse<ActiveErrors>) {
     try {
         const apiRes = await DoGet('/api/GetData/GetActiveErrors');

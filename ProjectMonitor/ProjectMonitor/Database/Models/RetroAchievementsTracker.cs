@@ -6,19 +6,19 @@ namespace ProjectMonitor.Api.Database.Models
     public class RetroAchievementsTracker
     {
         [Key]
-        [Column("mode")]
+        [Required]
         public string Mode { get; set; }
 
-        [Column("totalGames")]
+        [Required]
         public long TotalGames { get; set; }
 
-        [Column("totalUsers")]
+        [Required]
         public long TotalUsers { get; set; }
 
-        [Column("lastGameUpdate")]
+        [Required]
         public DateTime LastGameUpdate { get; set; }
 
-        [Column("gamesUpdated")]
+        [Required]
         public long GamesUpdated { get; set; }
     }
 }

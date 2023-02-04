@@ -1,6 +1,5 @@
 ﻿namespace ProjectMonitor.Api.Data.Enums
 {
-
     public class ErrorTypes
     {
         public const string SystemDown = "SystemDown";

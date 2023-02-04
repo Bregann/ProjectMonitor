@@ -1,7 +1,7 @@
-﻿using Humanizer;
+﻿using BreganUtils;
+using Humanizer;
 using Microsoft.AspNetCore.Mvc;
 using ProjectMonitor.Api.Database.Context;
-using ProjectMonitor.Api.Helpers;
 using ProjectMonitor.Api.Models.GetData;
 
 namespace ProjectMonitor.Api.Controllers.GetData
@@ -11,7 +11,7 @@ namespace ProjectMonitor.Api.Controllers.GetData
     public class GetDataController : ControllerBase
     {
         [HttpGet("GetDashboardData")]
-        public ActionResult<GetDashboardDataDto> GetDashboardData()
+        public ActionResult<GetDashboardDataResponseDto> GetDashboardData()
         {
             using (var context = new DatabaseContext())
             {
@@ -56,39 +56,39 @@ namespace ProjectMonitor.Api.Controllers.GetData
                     UsersInStream = twitchBot.UsersInStream,
                     TwitchIRCConnectionStatus = twitchBot.TwitchIRCConnectionStatus,
                     TwitchPubSubConnectionStatus = twitchBot.TwitchPubSubConnectionStatus,
-                    TwitchApiKeyLastRefreshTime = TimezoneHelper.ConvertDateTimeToLocalTime(twitchBot.TwitchApiKeyLastRefreshTime).Humanize(),
+                    TwitchApiKeyLastRefreshTime = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", twitchBot.TwitchApiKeyLastRefreshTime).Humanize(),
                     DiscordConnectionStatus = twitchBot.DiscordConnectionStatus,
                     StreamAnnounced = twitchBot.StreamAnnounced,
                     StreamStatus = twitchBot.StreamStatus,
                     StreamUptime = twitchBot.StreamUptime.Humanize(3, minUnit: Humanizer.Localisation.TimeUnit.Second),
                     DailyPointsEnabled = twitchBot.DailyPointsEnabled,
-                    LastDiscordLeaderboardsUpdate = TimezoneHelper.ConvertDateTimeToLocalTime(twitchBot.LastDiscordLeaderboardsUpdate).Humanize(),
-                    LastHoursUpdate = TimezoneHelper.ConvertDateTimeToLocalTime(twitchBot.LastHoursUpdate).Humanize()
+                    LastDiscordLeaderboardsUpdate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", twitchBot.TwitchApiKeyLastRefreshTime).Humanize(),
+                    LastHoursUpdate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", twitchBot.LastHoursUpdate).Humanize()
                 };
 
                 var retroAchievmentsTrackerData = new RetroAchievementsTracker
                 {
                     TotalGames = retroAchievements.TotalGames,
                     TotalUsers = retroAchievements.TotalUsers,
-                    LastGameUpdate = TimezoneHelper.ConvertDateTimeToLocalTime(retroAchievements.LastGameUpdate).Humanize(),
+                    LastGameUpdate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", retroAchievements.LastGameUpdate).Humanize(),
                     GamesUpdated = retroAchievements.GamesUpdated
                 };
 
                 var financeManagerData = new FinanceManager
                 {
-                    LastTransactionUpdate = TimezoneHelper.ConvertDateTimeToLocalTime(financeManger.LastTransactionUpdate).Humanize(),
-                    LastAPIRefresh = TimezoneHelper.ConvertDateTimeToLocalTime(financeManger.LastAPIRefresh).Humanize(),
+                    LastTransactionUpdate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", financeManger.LastTransactionUpdate).Humanize(),
+                    LastAPIRefresh = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", financeManger.LastAPIRefresh).Humanize(),
                     LastAPIRefreshStatusCode = financeManger.LastAPIRefreshStatusCode
                 };
 
                 var catBotData = new CatBot
                 {
                     DiscordConnectionStatus = catBot.DiscordConnectionStatus,
-                    LastTweet = TimezoneHelper.ConvertDateTimeToLocalTime(catBot.LastTweet).Humanize(),
-                    LastDiscordPost = TimezoneHelper.ConvertDateTimeToLocalTime(catBot.LastDiscordPost).Humanize()
+                    LastTweet = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", catBot.LastTweet).Humanize(),
+                    LastDiscordPost = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", catBot.LastDiscordPost).Humanize()
                 };
 
-                return new GetDashboardDataDto
+                return new GetDashboardDataResponseDto
                 {
                     Servers = serversList,
                     ProjectStatus = projectList,
@@ -96,15 +96,15 @@ namespace ProjectMonitor.Api.Controllers.GetData
                     RetroAchievementsTracker = retroAchievmentsTrackerData,
                     FinanceManager = financeManagerData,
                     CatBot = catBotData,
-                    LastUpdate = TimezoneHelper.ConvertDateTimeToLocalTime(DateTime.UtcNow).ToString("dd/MM @ HH:mm:ss")
+                    LastUpdate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", DateTime.UtcNow).ToString("dd/MM @ HH:mm:ss")
                 };
             }
         }
 
         [HttpGet("GetActiveErrors")]
-        public ActionResult<List<GetActiveErrorsDto>> GetActiveErrors()
+        public ActionResult<List<GetActiveErrorsResponseDto>> GetActiveErrors()
         {
-            var activeErrors = new List<GetActiveErrorsDto>();
+            var activeErrors = new List<GetActiveErrorsResponseDto>();
 
             using (var conntext = new DatabaseContext())
             {
@@ -117,10 +117,10 @@ namespace ProjectMonitor.Api.Controllers.GetData
 
                 foreach (var error in errorsFromDb)
                 {
-                    activeErrors.Add(new GetActiveErrorsDto
+                    activeErrors.Add(new GetActiveErrorsResponseDto
                     {
                         ErrorId = error.ErrorId,
-                        DateStarted = TimezoneHelper.ConvertDateTimeToLocalTime(error.DateStarted).Humanize(),
+                        DateStarted = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize(),
                         ProjectName = error.ProjectName,
                         ErrorDescription = error.ErrorDescription
                     });

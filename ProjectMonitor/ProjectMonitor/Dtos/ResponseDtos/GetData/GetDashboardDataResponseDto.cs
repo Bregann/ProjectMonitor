@@ -1,6 +1,6 @@
 ﻿namespace ProjectMonitor.Api.Models.GetData
 {
-    public class GetDashboardDataDto
+    public class GetDashboardDataResponseDto
     {
         public List<Servers> Servers { get; set; }
         public List<ProjectStatus> ProjectStatus { get; set; }

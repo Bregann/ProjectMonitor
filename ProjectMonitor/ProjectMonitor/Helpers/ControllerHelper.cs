@@ -10,15 +10,15 @@
                 return false;
             }
 
-            if (headers["ProjectApiKey"].Count == 0)
+            if (headers["Authorization"].Count == 0)
             {
                 return false;
             }
 
             //Make sure that the key matches
-            string apiKey = headers["ProjectApiKey"];
+            string apiKey = headers["Authorization"];
 
-            if (apiKey != Config.Key)
+            if (apiKey != AppConfig.ApiKey)
             {
                 return false;
             }

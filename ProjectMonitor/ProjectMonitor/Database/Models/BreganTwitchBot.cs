@@ -6,43 +6,43 @@ namespace ProjectMonitor.Api.Database.Models
     public class BreganTwitchBot
     {
         [Key]
-        [Column("mode")]
+        [Required]
         public string Mode { get; set; }
 
-        [Column("usersInStream")]
+        [Required]
         public long UsersInStream { get; set; }
 
-        [Column("twitchIRCConnectionStatus")]
+        [Required]
         public bool TwitchIRCConnectionStatus { get; set; }
 
-        [Column("twitchPubSubConnectionStatus")]
+        [Required]
         public bool TwitchPubSubConnectionStatus { get; set; }
 
-        [Column("twitchApiKeyLastRefreshTime")]
+        [Required]
         public DateTime TwitchApiKeyLastRefreshTime { get; set; }
 
-        [Column("discordConnectionStatus")]
+        [Required]
         public bool DiscordConnectionStatus { get; set; }
 
-        [Column("streamAnnounced")]
+        [Required]
         public bool StreamAnnounced { get; set; }
 
-        [Column("streamLiveTime")]
+        [Required]
         public DateTime StreamLiveTime { get; set; }
 
-        [Column("streamStatus")]
+        [Required]
         public bool StreamStatus { get; set; }
 
-        [Column("streamUptime")]
+        [Required]
         public TimeSpan StreamUptime { get; set; }
 
-        [Column("dailyPointsEnabled")]
+        [Required]
         public bool DailyPointsEnabled { get; set; }
 
-        [Column("lastDiscordLeaderboardsUpdate")]
+        [Required]
         public DateTime LastDiscordLeaderboardsUpdate { get; set; }
 
-        [Column("lastHoursUpdate")]
+        [Required]
         public DateTime LastHoursUpdate { get; set; }
     }
 }

@@ -6,16 +6,16 @@ namespace ProjectMonitor.Api.Database.Models
     public class CatBot
     {
         [Key]
-        [Column("mode")]
+        [Required]
         public string Mode { get; set; }
 
-        [Column("discordConnectionStatus")]
+        [Required]
         public bool DiscordConnectionStatus { get; set; }
 
-        [Column("lastTweet")]
+        [Required]
         public DateTime LastTweet { get; set; }
 
-        [Column("lastDiscordPost")]
+        [Required]
         public DateTime LastDiscordPost { get; set; }
     }
 }

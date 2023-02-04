@@ -12,12 +12,25 @@ namespace ProjectMonitor.Api.Database.Context
         public DbSet<FinanceManager> FinanceManager { get; set; }
         public DbSet<CatBot> CatBot { get; set; }
         public DbSet<Errors> Errors { get; set; }
+        public DbSet<Config> Config { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Errors>()
-                .Property(x => x.DateEnded)
-                .IsRequired(false);
+            modelBuilder.Entity<Config>().HasData(
+                new Config
+                {
+                    RowId = 1,
+                    ApiKey = "",
+                    FromEmailAddress = "",
+                    ToEmailAddress = "",
+                    FromEmailAddressName = "",
+                    ToEmailAddressName = "",
+                    PMErrorsResolvedTemplateId = "",
+                    PMErrorsTemplateId = "",
+                    HFConnectionString = "",
+                    ChatId = 0,
+                    MMSApiKey = ""
+                });
 
             modelBuilder.Entity<BreganTwitchBot>().HasData(
                 new BreganTwitchBot
@@ -106,6 +119,6 @@ namespace ProjectMonitor.Api.Database.Context
         }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseNpgsql($"Host={Config.DbHost};Database=projectmonitor;Username={Config.DbUsername};Password={Config.DbPassword}");
+            => optionsBuilder.UseNpgsql(AppConfig.ConnectionString);
     }
 }

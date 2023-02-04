@@ -7,31 +7,36 @@ namespace ProjectMonitor.Api.Database.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [Column("errorId")]
+        [Required]
         public int ErrorId { get; set; }
 
-        [Column("dateStarted")]
+        [Required]
         public DateTime DateStarted { get; set; }
 
-        [Column("dateEnded")]
         public DateTime? DateEnded { get; set; }
 
-        [Column("downtimeDuration")]
+        [Required]
         public TimeSpan DowntimeDuration { get; set; }
 
-        [Column("projectName")]
+        [Required]
         public string ProjectName { get; set; }
 
-        [Column("errorType")]
+        [Required]
         public string ErrorType { get; set; }
 
-        [Column("errorDescription")]
+        [Required]
         public string ErrorDescription { get; set; }
 
-        [Column("alertSent")]
-        public bool AlertSent { get; set; }
+        [Required]
+        public bool EmailAlertSent { get; set; }
 
-        [Column("resolvedAlertSent")]
-        public bool ResolvedAlertSent { get; set; }
+        [Required]
+        public bool EmailResolvedAlertSent { get; set; }
+
+        [Required]
+        public bool TextAlertSent { get; set; }
+
+        [Required]
+        public bool TextResolvedAlertSent { get; set; }
     }
 }

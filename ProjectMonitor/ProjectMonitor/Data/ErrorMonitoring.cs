@@ -1,7 +1,9 @@
-﻿using Humanizer;
+﻿using BreganUtils;
+using Humanizer;
 using ProjectMonitor.Api.Data.Enums;
 using ProjectMonitor.Api.Database.Context;
 using ProjectMonitor.Api.Helpers;
+using System.Diagnostics;
 
 namespace ProjectMonitor.Api.Data
 {
@@ -9,29 +11,51 @@ namespace ProjectMonitor.Api.Data
     {
         public static void CheckProjectAndSystemHealth()
         {
+            //Check if the system has recently rebooted, if so then don't process stuff and let the data update
+            var projectUptime = DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
+            if (projectUptime.Minutes <= 1)
+            {
+                return;
+            }
+
             using (var context = new DatabaseContext())
             {
                 //get all the projects that haven't sent a health check in 30 seconds
-                var downProjects = context.ProjectHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 30).ToList();
-                var downServers = context.SystemHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 30).ToList();
+                var downProjects = context.ProjectHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 120).ToList();
+                var downServers = context.SystemHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 120).ToList();
 
                 //Loop through each project and add into the errors if needed
                 foreach (var project in downProjects)
                 {
+                    project.ProjectRunning = false;
                     //Add in the project to the errors
                     AddNewError(ErrorTypes.ProjectDown, "Project has not sent an update within the last 30 seconds", project.ProjectName);
                 }
 
                 foreach (var server in downServers)
                 {
+                    server.SystemRunning = false;
+
                     //Add in the project to the errors
                     AddNewError(ErrorTypes.SystemDown, "System has not sent an update within the last 30 seconds", server.SystemName);
                 }
+
+                context.ProjectHealth.UpdateRange(downProjects);
+                context.SystemHealth.UpdateRange(downServers);
             }
         }
 
         public static void CheckForProjectErrors()
         {
+            //Check if the system has recently rebooted, if so then don't process stuff and let the data update
+            var projectUptime = DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
+            if (projectUptime.Minutes <= 1)
+            {
+                return;
+            }
+
             using (var context = new DatabaseContext())
             {
                 var twitchBotData = context.BreganTwitchBot.Where(x => x.Mode == "release").First();
@@ -40,6 +64,7 @@ namespace ProjectMonitor.Api.Data
                 var catBotData = context.CatBot.Where(x => x.Mode == "release").First();
 
                 #region TwitchBot
+
                 //Check if it's still fully connected
                 if (!twitchBotData.TwitchIRCConnectionStatus)
                 {
@@ -69,13 +94,14 @@ namespace ProjectMonitor.Api.Data
                 }
 
                 //Check if daily points hasn't been enabled after 32 mins of the stream being live
-                if (!twitchBotData.DailyPointsEnabled && (DateTime.UtcNow - twitchBotData.StreamLiveTime).TotalMinutes >= 32)
+                if (!twitchBotData.DailyPointsEnabled && twitchBotData.StreamStatus && twitchBotData.StreamAnnounced && (DateTime.UtcNow - twitchBotData.StreamLiveTime).TotalMinutes >= 32)
                 {
                     AddNewError(ErrorTypes.DailyPointsNotEnabled, "Daily points not enabled after the stream has been live for over 30 minutes", "twitchbot");
                 }
 
                 //Check if the discord leaderboards haven't been updated 5 mins after they have meant to be
-                if ((new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, 2, 0, 0) - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes >= 5)
+                //1440 mins = 1 day, if it goes past that then it's not updated
+                if ((DateTime.UtcNow - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes >= 1445)
                 {
                     AddNewError(ErrorTypes.DiscordLbNotUpdated, "Discord leaderboards have not been updated at the set time", "twitchbot");
                 }
@@ -85,17 +111,22 @@ namespace ProjectMonitor.Api.Data
                 {
                     AddNewError(ErrorTypes.UserHoursNotUpdated, "User hours have not updated within the last 2 minutes", "twitchbot");
                 }
-                #endregion
+
+                #endregion TwitchBot
 
                 #region RA
+
                 //Check if the game update has taken over an hour
-                if ((new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, 4, 0, 0) - raData.LastGameUpdate).TotalMinutes >= 60)
+                //1440 mins = 1 day, if it goes past that then it's not updated
+                if ((DateTime.UtcNow - raData.LastGameUpdate).TotalMinutes >= 1500)
                 {
                     AddNewError(ErrorTypes.RAGamesNotUpdated, "RA games did not update in a timely manner", "ratracker");
                 }
-                #endregion
+
+                #endregion RA
 
                 #region FM
+
                 //Check if the API has not refreshed within the hour
                 if ((DateTime.UtcNow - fmData.LastAPIRefresh).TotalMinutes > 61)
                 {
@@ -103,13 +134,15 @@ namespace ProjectMonitor.Api.Data
                 }
 
                 //Check if the status is not success
-                if (fmData.LastAPIRefreshStatusCode != "Success")
+                if (fmData.LastAPIRefreshStatusCode != "OK")
                 {
                     AddNewError(ErrorTypes.MonzoApiRefreshError, "Monzo API has not refreshed successfully", "financemanager");
                 }
-                #endregion
+
+                #endregion FM
 
                 #region CatBot
+
                 //Check if discord is not connected
                 if (!catBotData.DiscordConnectionStatus)
                 {
@@ -127,52 +160,82 @@ namespace ProjectMonitor.Api.Data
                 {
                     AddNewError(ErrorTypes.LastDiscordPostNotSent, "latest cat bot discord post has not sent", "catbot");
                 }
-                #endregion
+
+                #endregion CatBot
             }
         }
 
-        public static async Task CheckAndEmailOutErrors()
+        public static void CheckAndSendOutErrors()
         {
             using (var context = new DatabaseContext())
             {
-                var errorsNotSent = context.Errors.Where(x => !x.AlertSent).ToList();
-                var errorsResolvedNotSent = context.Errors.Where(x => !x.ResolvedAlertSent && x.AlertSent && x.DateEnded != null).ToList();
+                var errorsNotSent = context.Errors.Where(x => !x.EmailAlertSent || !x.TextAlertSent).ToList();
+                var errorsResolvedNotSent = context.Errors.Where(x => !x.EmailResolvedAlertSent && x.DateEnded != null || !x.TextResolvedAlertSent && x.DateEnded != null).ToList();
 
                 foreach (var error in errorsNotSent)
                 {
-                    var result = await Alerts.SendEmail(new
+                    if (!error.EmailAlertSent)
                     {
-                        projectName = error.ProjectName,
-                        projectError = error.ErrorDescription,
-                        projectErrorStartDate = TimezoneHelper.ConvertDateTimeToLocalTime(error.DateStarted).Humanize()
+                        var emailContent = new
+                        {
+                            projectName = error.ProjectName,
+                            projectError = error.ErrorDescription,
+                            projectErrorStartDate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize()
+                        };
 
-                    }, Config.PMErrorsTemplateId);
+                        var result = MessageHelper.SendEmail(AppConfig.MMSApiKey, AppConfig.ToEmailAddress, AppConfig.ToEmailAddressName, AppConfig.FromEmailAddress, AppConfig.FromEmailAddressName, emailContent, AppConfig.PMErrorsTemplateId);
 
-                    if (result)
+                        if (result)
+                        {
+                            error.EmailAlertSent = true;
+                        }
+                    }
+
+                    if (!error.TextAlertSent)
                     {
-                        error.AlertSent = true;
+                        var messageContent = $"Project Errored: {error.ProjectName} \n Description: {error.ErrorDescription} \n Date started: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize()}";
+                        var result = MessageHelper.SendTextMessage(AppConfig.MMSApiKey, AppConfig.ChatId, messageContent);
+
+                        if (result)
+                        {
+                            error.TextAlertSent = true;
+                        }
                     }
                 }
 
                 foreach (var resolvedError in errorsResolvedNotSent)
                 {
-                    var result = await Alerts.SendEmail(new
+                    if (!resolvedError.EmailResolvedAlertSent)
                     {
-                        projectName = resolvedError.ProjectName,
-                        projectError = resolvedError.ErrorDescription,
-                        projectErrorStartDate = TimezoneHelper.ConvertDateTimeToLocalTime(resolvedError.DateStarted).Humanize(),
-                        projectErrorEndDate = TimezoneHelper.ConvertDateTimeToLocalTime(resolvedError.DateEnded.Value).Humanize(),
-                        projectDowntimeTotal = resolvedError.DowntimeDuration
-                    }, Config.PMErrorsResolvedTemplateId);
+                        var emailContent = new
+                        {
+                            projectName = resolvedError.ProjectName,
+                            projectError = resolvedError.ErrorDescription,
+                            projectErrorStartDate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", resolvedError.DateStarted).Humanize(),
+                            projectErrorEndDate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", resolvedError.DateEnded.Value).Humanize(),
+                            projectDowntimeTotal = resolvedError.DowntimeDuration.Humanize()
+                        };
 
-                    if (result)
+                        var result = MessageHelper.SendEmail(AppConfig.MMSApiKey, AppConfig.ToEmailAddress, AppConfig.ToEmailAddressName, AppConfig.FromEmailAddress, AppConfig.FromEmailAddressName, emailContent, AppConfig.PMErrorsResolvedTemplateId);
+
+                        if (result)
+                        {
+                            resolvedError.EmailResolvedAlertSent = true;
+                        }
+                    }
+
+                    if (!resolvedError.TextResolvedAlertSent)
                     {
-                        resolvedError.ResolvedAlertSent = true;
+                        var messageContent = $"Error Resolved for project \n {resolvedError.ProjectName} \n Description: {resolvedError.ErrorDescription} \n Date ended: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", resolvedError.DateEnded.Value).Humanize()} \n Downtime: {resolvedError.DowntimeDuration.Humanize()}";
+                        var result = MessageHelper.SendTextMessage(AppConfig.MMSApiKey, AppConfig.ChatId, messageContent);
+
+                        if (result)
+                        {
+                            resolvedError.TextResolvedAlertSent = true;
+                        }
                     }
                 }
 
-                context.Errors.UpdateRange(errorsNotSent);
-                context.Errors.UpdateRange(errorsResolvedNotSent);
                 context.SaveChanges();
             }
         }
@@ -195,7 +258,6 @@ namespace ProjectMonitor.Api.Data
                 var fmData = context.FinanceManager.Where(x => x.Mode == "release").First();
                 var catBotData = context.CatBot.Where(x => x.Mode == "release").First();
 
-
                 foreach (var error in currentErrors)
                 {
                     switch (error.ErrorType)
@@ -206,99 +268,116 @@ namespace ProjectMonitor.Api.Data
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.ProjectDown:
                             if ((DateTime.UtcNow - context.ProjectHealth.Where(x => x.ProjectName == error.ProjectName).First().LastUpdate).TotalSeconds < 30)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.ProjectCrashed:
                             UpdateErrorAsCompleted(error.ErrorId);
                             break;
+
                         case ErrorTypes.TwitchIRCError:
                             if (twitchBotData.TwitchIRCConnectionStatus)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.TwitchPubSubError:
                             if (twitchBotData.TwitchPubSubConnectionStatus)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.DiscordConnectionError:
                             if (twitchBotData.DiscordConnectionStatus)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.TwitchAPIRefreshError:
                             if ((DateTime.UtcNow - twitchBotData.TwitchApiKeyLastRefreshTime).TotalMinutes <= 120)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.StreamNotAnnounced:
                             if (twitchBotData.StreamStatus && twitchBotData.StreamAnnounced)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.DailyPointsNotEnabled:
                             if (twitchBotData.DailyPointsEnabled)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.DiscordLbNotUpdated:
-                            if ((new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, 2, 0, 0) - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes <= 5)
+                            if ((DateTime.UtcNow - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes <= 1445)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.UserHoursNotUpdated:
                             if ((twitchBotData.StreamStatus && (DateTime.UtcNow - twitchBotData.LastHoursUpdate).TotalMinutes <= 2))
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.RAGamesNotUpdated:
-                            if ((new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, 4, 0, 0) - raData.LastGameUpdate).TotalMinutes <= 60)
+                            if ((DateTime.UtcNow - raData.LastGameUpdate).TotalMinutes <= 1500)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.MonzoApiRefreshError:
                             if ((DateTime.UtcNow - fmData.LastAPIRefresh).TotalMinutes < 61)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.MonzoApiStatusError:
-                            if (fmData.LastAPIRefreshStatusCode == "Success")
+                            if (fmData.LastAPIRefreshStatusCode == "OK")
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.CatBotDiscordConnectionError:
                             if (catBotData.DiscordConnectionStatus)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.LastTweetNotSent:
                             if ((DateTime.UtcNow - catBotData.LastTweet).TotalMinutes < 22)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         case ErrorTypes.LastDiscordPostNotSent:
                             if ((DateTime.UtcNow - catBotData.LastDiscordPost).TotalMinutes < 22)
                             {
                                 UpdateErrorAsCompleted(error.ErrorId);
                             }
                             break;
+
                         default:
                             break;
                     }
@@ -323,8 +402,10 @@ namespace ProjectMonitor.Api.Data
                     //Still want to record it but not keep spamming out emails
                     context.Errors.Add(new Database.Models.Errors
                     {
-                        AlertSent = true,
-                        ResolvedAlertSent = true,
+                        EmailAlertSent = true,
+                        EmailResolvedAlertSent = true,
+                        TextAlertSent = true,
+                        TextResolvedAlertSent = true,
                         DateEnded = DateTime.UtcNow,
                         DateStarted = DateTime.UtcNow,
                         DowntimeDuration = TimeSpan.FromSeconds(0),
@@ -339,8 +420,10 @@ namespace ProjectMonitor.Api.Data
 
                 context.Errors.Add(new Database.Models.Errors
                 {
-                    AlertSent = false,
-                    ResolvedAlertSent = false,
+                    EmailAlertSent = false,
+                    EmailResolvedAlertSent = false,
+                    TextAlertSent = false,
+                    TextResolvedAlertSent = false,
                     DateEnded = null,
                     DateStarted = DateTime.UtcNow,
                     DowntimeDuration = TimeSpan.FromSeconds(0),
@@ -365,10 +448,10 @@ namespace ProjectMonitor.Api.Data
                 //Don't need to send a resolved for that one, especially if it's stuck in some crash loop
                 if (error.ErrorType == ErrorTypes.ProjectCrashed)
                 {
-                    error.ResolvedAlertSent = true;
+                    error.EmailResolvedAlertSent = true;
+                    error.TextResolvedAlertSent = true;
                 }
 
-                context.Update(error);
                 context.SaveChanges();
             }
         }
