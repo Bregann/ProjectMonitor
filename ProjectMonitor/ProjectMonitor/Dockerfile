@@ -7,7 +7,7 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
-COPY ["ProjectMonitor/ProjectMonitor.Api.csproj", "ProjectMonitor/"]
+COPY ["ProjectMonitor/ProjectMonitor/ProjectMonitor.Api.csproj", "ProjectMonitor/"]
 RUN dotnet restore "ProjectMonitor/ProjectMonitor.Api.csproj"
 COPY . .
 WORKDIR "/src/ProjectMonitor"
