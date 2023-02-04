@@ -33,6 +33,7 @@ namespace ProjectMonitor.Api
                 PMErrorsResolvedTemplateId = config.PMErrorsResolvedTemplateId;
                 HFConnectionString = config.HFConnectionString;
                 ChatId = config.ChatId;
+                MMSApiKey = config.MMSApiKey;
                 Log.Information("Config loaded");
             }
         }
