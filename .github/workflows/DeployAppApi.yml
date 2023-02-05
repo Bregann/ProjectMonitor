@@ -34,7 +34,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.KEY }}
         source: projectmonitorapi.tar
-        target: /root/Docker/
+        target: ${{ secrets.TARGET }}
         
     - name: Stop And Remove Current Container
       uses: appleboy/ssh-action@v0.1.7
@@ -51,7 +51,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.KEY }}
         script: |
-          docker load -i /root/Docker/projectmonitorapi.tar
+          docker load -i ${{ secrets.TARGET }}projectmonitorapi.tar
 
     - name: Start New Container
       uses: appleboy/ssh-action@v0.1.7
@@ -69,4 +69,4 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.KEY }}
         script: |
-          rm /root/Docker/projectmonitorapi.tar
+          rm ${{ secrets.TARGET }}projectmonitorapi.tar
