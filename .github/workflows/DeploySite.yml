@@ -57,7 +57,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.KEY }}
         script: |
-          docker run -d -p 3000:3000 projectmonitorwebsite --name projectmonitorwebsite
+          docker run -d -p 3000:3000 --name projectmonitorwebsite projectmonitorwebsite:latest
 
     - name: Clean Up The Tar File
       uses: appleboy/ssh-action@v0.1.7

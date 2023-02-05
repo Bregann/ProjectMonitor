@@ -12,7 +12,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
         <Head>
-            <title>Dashboard</title>
+            <title>Dashboard Monitor</title>
         </Head>
 
         <Component {...pageProps} />
