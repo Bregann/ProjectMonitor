@@ -5,7 +5,7 @@ namespace ProjectMonitor.Api
 {
     public class AppConfig
     {
-        public static readonly string ConnectionString = Environment.GetEnvironmentVariable("PMConnStringLive");
+        public static readonly string ConnectionString = Environment.GetEnvironmentVariable("PMConnString");
 
         public static string ToEmailAddress { get; private set; } = "";
         public static string ToEmailAddressName { get; private set; } = "";
