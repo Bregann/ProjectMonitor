@@ -24,7 +24,6 @@ namespace ProjectMonitor.Api.Data
             {
                 //get all the projects that haven't sent a health check in 30 seconds
                 var downProjects = context.ProjectHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 120).ToList();
-                var downServers = context.SystemHealth.Where(x => (DateTime.UtcNow - x.LastUpdate).TotalSeconds > 120).ToList();
 
                 //Loop through each project and add into the errors if needed
                 foreach (var project in downProjects)
@@ -34,16 +33,7 @@ namespace ProjectMonitor.Api.Data
                     AddNewError(ErrorTypes.ProjectDown, "Project has not sent an update within the last 30 seconds", project.ProjectName);
                 }
 
-                foreach (var server in downServers)
-                {
-                    server.SystemRunning = false;
-
-                    //Add in the project to the errors
-                    AddNewError(ErrorTypes.SystemDown, "System has not sent an update within the last 30 seconds", server.SystemName);
-                }
-
                 context.ProjectHealth.UpdateRange(downProjects);
-                context.SystemHealth.UpdateRange(downServers);
             }
         }
 

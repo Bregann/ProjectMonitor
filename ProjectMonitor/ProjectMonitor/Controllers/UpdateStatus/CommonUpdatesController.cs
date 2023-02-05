@@ -67,46 +67,5 @@ namespace ProjectMonitor.Api.Controllers.UpdateStatus
 
             return Ok();
         }
-
-        [HttpPost("AddAndUpdateSystemData")]
-        public IActionResult AddAndUpdateSystemData(AddAndUpdateSystemDataRequestDto requestDto)
-        {
-            string apiKey = Request.Headers.Authorization;
-
-            if (apiKey == null || apiKey != AppConfig.ApiKey)
-            {
-                Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - request missing api key or is invalid");
-                return BadRequest();
-            }
-
-            using (var context = new DatabaseContext())
-            {
-                var system = context.SystemHealth.Where(x => x.SystemName == requestDto.SystemName).FirstOrDefault();
-
-                //Add it if it doesn't exist
-                if (system == null)
-                {
-                    context.SystemHealth.Add(new SystemHealth
-                    {
-                        SystemName = requestDto.SystemName,
-                        SystemUptime = requestDto.SystemUptime,
-                        LastUpdate = DateTime.UtcNow,
-                    });
-
-                    Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - new system added {requestDto.SystemName}");
-                }
-                else
-                {
-                    system.SystemUptime = requestDto.SystemUptime;
-                    system.LastUpdate = DateTime.UtcNow;
-                    context.SystemHealth.Update(system);
-                }
-
-                context.SaveChanges();
-                Log.Information($"[Project Monitor Api] AddAndUpdateSystemData - system updated {requestDto.SystemName}");
-            }
-
-            return Ok();
-        }
     }
 }

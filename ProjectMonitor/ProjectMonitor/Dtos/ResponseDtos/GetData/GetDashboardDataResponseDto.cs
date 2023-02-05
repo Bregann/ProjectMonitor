@@ -2,19 +2,12 @@
 {
     public class GetDashboardDataResponseDto
     {
-        public List<Servers> Servers { get; set; }
         public List<ProjectStatus> ProjectStatus { get; set; }
         public TwitchBot TwitchBot { get; set; }
         public RetroAchievementsTracker RetroAchievementsTracker { get; set; }
         public FinanceManager FinanceManager { get; set; }
         public CatBot CatBot { get; set; }
         public string LastUpdate { get; set; }
-    }
-
-    public class Servers
-    {
-        public string ServerName { get; set; }
-        public string SystemUptime { get; set; }
     }
 
     public class ProjectStatus

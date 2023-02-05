@@ -35,6 +35,12 @@ namespace ProjectMonitor.Api.Database.Models
         public string HFConnectionString { get; set; }
 
         [Required]
+        public string HangfireUsername { get; set; }
+
+        [Required]
+        public string HangfirePassword { get; set; }
+
+        [Required]
         public int ChatId { get; set; }
 
         [Required]

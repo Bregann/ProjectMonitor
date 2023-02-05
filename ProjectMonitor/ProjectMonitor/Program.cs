@@ -1,5 +1,6 @@
 using BreganUtils.ProjectMonitor;
 using Hangfire;
+using Hangfire.Dashboard.BasicAuthorization;
 using Hangfire.Dashboard.Dark;
 using Hangfire.PostgreSql;
 using ProjectMonitor.Api;
@@ -65,5 +66,25 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+var auth = new[] { new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+{
+    RequireSsl = false,
+    SslRedirect = false,
+    LoginCaseSensitive = true,
+    Users = new []
+    {
+        new BasicAuthAuthorizationUser
+        {
+            Login = AppConfig.HFUsername,
+            PasswordClear = AppConfig.HFPassword
+        }
+    }
+})};
+
+app.MapHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = auth
+}, JobStorage.Current);
 
 app.Run();

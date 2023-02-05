@@ -5,7 +5,7 @@ namespace ProjectMonitor.Api
 {
     public class AppConfig
     {
-        public static readonly string ConnectionString = Environment.GetEnvironmentVariable("PMConnString");
+        public static readonly string ConnectionString = Environment.GetEnvironmentVariable("PMConnStringLive");
 
         public static string ToEmailAddress { get; private set; } = "";
         public static string ToEmailAddressName { get; private set; } = "";
@@ -15,6 +15,9 @@ namespace ProjectMonitor.Api
         public static string PMErrorsTemplateId { get; private set; } = "";
         public static string PMErrorsResolvedTemplateId { get; private set; } = "";
         public static string HFConnectionString { get; private set; } = "";
+        public static string HFUsername { get; private set; } = "";
+        public static string HFPassword { get; private set; } = "";
+
         public static int ChatId { get; private set; } = 0;
         public static string MMSApiKey { get; private set; } = "";
 
@@ -34,6 +37,9 @@ namespace ProjectMonitor.Api
                 HFConnectionString = config.HFConnectionString;
                 ChatId = config.ChatId;
                 MMSApiKey = config.MMSApiKey;
+                HFUsername = config.HangfireUsername;
+                HFPassword = config.HangfirePassword;
+
                 Log.Information("Config loaded from database");
             }
         }

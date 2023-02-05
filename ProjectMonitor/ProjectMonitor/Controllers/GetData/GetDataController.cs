@@ -15,19 +15,6 @@ namespace ProjectMonitor.Api.Controllers.GetData
         {
             using (var context = new DatabaseContext())
             {
-                //Get the server data
-                var servers = context.SystemHealth.OrderBy(x => x.SystemName);
-                var serversList = new List<Servers>();
-
-                foreach (var server in servers)
-                {
-                    serversList.Add(new Servers
-                    {
-                        ServerName = server.SystemName,
-                        SystemUptime = server.SystemUptime.Humanize(3, minUnit: Humanizer.Localisation.TimeUnit.Second)
-                    });
-                }
-
                 //Get the project statuses
                 var projects = context.ProjectHealth.OrderBy(x => x.ProjectName);
                 var projectList = new List<ProjectStatus>();
@@ -90,7 +77,6 @@ namespace ProjectMonitor.Api.Controllers.GetData
 
                 return new GetDashboardDataResponseDto
                 {
-                    Servers = serversList,
                     ProjectStatus = projectList,
                     TwitchBot = twitchBotData,
                     RetroAchievementsTracker = retroAchievmentsTrackerData,

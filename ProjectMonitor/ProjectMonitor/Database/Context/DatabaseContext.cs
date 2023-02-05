@@ -6,7 +6,6 @@ namespace ProjectMonitor.Api.Database.Context
     public class DatabaseContext : DbContext
     {
         public DbSet<ProjectHealth> ProjectHealth { get; set; }
-        public DbSet<SystemHealth> SystemHealth { get; set; }
         public DbSet<BreganTwitchBot> BreganTwitchBot { get; set; }
         public DbSet<RetroAchievementsTracker> RetroAchievementsTracker { get; set; }
         public DbSet<FinanceManager> FinanceManager { get; set; }
@@ -29,7 +28,9 @@ namespace ProjectMonitor.Api.Database.Context
                     PMErrorsTemplateId = "",
                     HFConnectionString = "",
                     ChatId = 0,
-                    MMSApiKey = ""
+                    MMSApiKey = "",
+                    HangfireUsername = "",
+                    HangfirePassword = ""
                 });
 
             modelBuilder.Entity<BreganTwitchBot>().HasData(
