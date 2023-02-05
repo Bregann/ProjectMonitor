@@ -20,7 +20,7 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t projectmonitorwebsite -f /projectmonitorweb/Dockerfile .
+        docker build -t projectmonitorwebsite -f /ProjectMonitor/projectmonitorweb/Dockerfile .
         
     - name: Save Docker Image
       run: |
