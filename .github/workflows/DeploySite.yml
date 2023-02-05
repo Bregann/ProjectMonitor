@@ -7,9 +7,6 @@ on:
     paths:
       - 'projectmonitorweb/**'
 
-env:
-  DOTNET_CLI_TELEMETRY_OPTOUT: 1
-  
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +17,8 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -t projectmonitorwebsite -f /ProjectMonitor/projectmonitorweb/Dockerfile .
+       tree
+        docker build -t projectmonitorwebsite -f /ProjectMonitor/ProjectMonitor/projectmonitorweb/Dockerfile .
         
     - name: Save Docker Image
       run: |
