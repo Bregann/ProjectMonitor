@@ -1,4 +1,4 @@
-name: Build and Package Api project
+name: Build and Package Website
 
 on:
   push:
@@ -20,8 +20,7 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        tree
-        docker build -t projectmonitorwebsite -f ProjectMonitor/projectmonitorweb/Dockerfile .
+        docker build -t projectmonitorwebsite -f /projectmonitorweb/Dockerfile .
         
     - name: Save Docker Image
       run: |
