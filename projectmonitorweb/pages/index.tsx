@@ -40,7 +40,7 @@ const Dashboard = (props: DashboardProps) => {
         errorData.errorData.map((error: ErrorData) =>
         <Alert variant="filled" severity="error" key={error.errorId}>
           ERROR DETECTED IN {error.projectName} <br/>
-          Description: {error.errorDescription} <br/>
+          Description: {error.errorDescription} <br/> 
           Date started: {error.dateStarted}
         </Alert>
         )}
