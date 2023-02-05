@@ -3,6 +3,7 @@ using Humanizer;
 using ProjectMonitor.Api.Data.Enums;
 using ProjectMonitor.Api.Database.Context;
 using ProjectMonitor.Api.Helpers;
+using Serilog;
 using System.Diagnostics;
 
 namespace ProjectMonitor.Api.Data
@@ -260,127 +261,129 @@ namespace ProjectMonitor.Api.Data
 
                 foreach (var error in currentErrors)
                 {
-                    switch (error.ErrorType)
+                    try
                     {
-                        case ErrorTypes.SystemDown:
-                            if ((DateTime.UtcNow - context.SystemHealth.Where(x => x.SystemName == error.ProjectName).First().LastUpdate).TotalSeconds < 30)
-                            {
+                        switch (error.ErrorType)
+                        {
+                            case ErrorTypes.ProjectDown:
+                                if ((DateTime.UtcNow - context.ProjectHealth.Where(x => x.ProjectName == error.ProjectName).First().LastUpdate).TotalSeconds < 30)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
+
+                            case ErrorTypes.ProjectCrashed:
                                 UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                                break;
 
-                        case ErrorTypes.ProjectDown:
-                            if ((DateTime.UtcNow - context.ProjectHealth.Where(x => x.ProjectName == error.ProjectName).First().LastUpdate).TotalSeconds < 30)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.TwitchIRCError:
+                                if (twitchBotData.TwitchIRCConnectionStatus)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.ProjectCrashed:
-                            UpdateErrorAsCompleted(error.ErrorId);
-                            break;
+                            case ErrorTypes.TwitchPubSubError:
+                                if (twitchBotData.TwitchPubSubConnectionStatus)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.TwitchIRCError:
-                            if (twitchBotData.TwitchIRCConnectionStatus)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.DiscordConnectionError:
+                                if (twitchBotData.DiscordConnectionStatus)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.TwitchPubSubError:
-                            if (twitchBotData.TwitchPubSubConnectionStatus)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.TwitchAPIRefreshError:
+                                if ((DateTime.UtcNow - twitchBotData.TwitchApiKeyLastRefreshTime).TotalMinutes <= 120)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.DiscordConnectionError:
-                            if (twitchBotData.DiscordConnectionStatus)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.StreamNotAnnounced:
+                                if (twitchBotData.StreamStatus && twitchBotData.StreamAnnounced)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.TwitchAPIRefreshError:
-                            if ((DateTime.UtcNow - twitchBotData.TwitchApiKeyLastRefreshTime).TotalMinutes <= 120)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.DailyPointsNotEnabled:
+                                if (twitchBotData.DailyPointsEnabled)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.StreamNotAnnounced:
-                            if (twitchBotData.StreamStatus && twitchBotData.StreamAnnounced)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.DiscordLbNotUpdated:
+                                if ((DateTime.UtcNow - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes <= 1445)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.DailyPointsNotEnabled:
-                            if (twitchBotData.DailyPointsEnabled)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.UserHoursNotUpdated:
+                                if ((twitchBotData.StreamStatus && (DateTime.UtcNow - twitchBotData.LastHoursUpdate).TotalMinutes <= 2))
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.DiscordLbNotUpdated:
-                            if ((DateTime.UtcNow - twitchBotData.LastDiscordLeaderboardsUpdate).TotalMinutes <= 1445)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.RAGamesNotUpdated:
+                                if ((DateTime.UtcNow - raData.LastGameUpdate).TotalMinutes <= 1500)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.UserHoursNotUpdated:
-                            if ((twitchBotData.StreamStatus && (DateTime.UtcNow - twitchBotData.LastHoursUpdate).TotalMinutes <= 2))
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.MonzoApiRefreshError:
+                                if ((DateTime.UtcNow - fmData.LastAPIRefresh).TotalMinutes < 61)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.RAGamesNotUpdated:
-                            if ((DateTime.UtcNow - raData.LastGameUpdate).TotalMinutes <= 1500)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.MonzoApiStatusError:
+                                if (fmData.LastAPIRefreshStatusCode == "OK")
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.MonzoApiRefreshError:
-                            if ((DateTime.UtcNow - fmData.LastAPIRefresh).TotalMinutes < 61)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.CatBotDiscordConnectionError:
+                                if (catBotData.DiscordConnectionStatus)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.MonzoApiStatusError:
-                            if (fmData.LastAPIRefreshStatusCode == "OK")
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.LastTweetNotSent:
+                                if ((DateTime.UtcNow - catBotData.LastTweet).TotalMinutes < 22)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.CatBotDiscordConnectionError:
-                            if (catBotData.DiscordConnectionStatus)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
+                            case ErrorTypes.LastDiscordPostNotSent:
+                                if ((DateTime.UtcNow - catBotData.LastDiscordPost).TotalMinutes < 22)
+                                {
+                                    UpdateErrorAsCompleted(error.ErrorId);
+                                }
+                                break;
 
-                        case ErrorTypes.LastTweetNotSent:
-                            if ((DateTime.UtcNow - catBotData.LastTweet).TotalMinutes < 22)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
-
-                        case ErrorTypes.LastDiscordPostNotSent:
-                            if ((DateTime.UtcNow - catBotData.LastDiscordPost).TotalMinutes < 22)
-                            {
-                                UpdateErrorAsCompleted(error.ErrorId);
-                            }
-                            break;
-
-                        default:
-                            break;
+                            default:
+                                break;
+                        }
                     }
+                    catch (Exception e)
+                    {
+                        Log.Fatal($"[Error Checker] error - {e}");
+                        continue;
+                    }
+
                 }
             }
         }
