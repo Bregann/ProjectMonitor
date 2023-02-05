@@ -16,7 +16,7 @@ export default function RootLayout({
     return (
       <html lang="en">
         <head>
-          <title>Dashboard Monitor</title>
+          <title>Dashboard Monitor V1</title>
         </head>
         <body>{children}</body>
       </html>
