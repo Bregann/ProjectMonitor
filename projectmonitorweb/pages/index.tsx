@@ -1,6 +1,5 @@
-'use client';
-
 import { Alert, Paper } from '@mui/material';
+import { GetServerSideProps } from 'next';
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { Container, Row, Col } from 'react-bootstrap';
@@ -271,5 +270,20 @@ const Dashboard = (props: DashboardProps) => {
     </>
   )
 }
+
+export const getServerSideProps: GetServerSideProps<DashboardProps> = async (context) => {
+    const dashRres = await DoGet('/api/GetData');
+    const dashData: DashboardData = await dashRres.json();
+
+      const errorRes = await DoGet('/api/GetActiveErrors');
+      const errorData: ActiveErrors = await errorRes.json();
+
+    return {
+      props: {
+        dashboardData: dashData,
+        errorData: errorData
+      },
+    }
+  }
 
 export default Dashboard
