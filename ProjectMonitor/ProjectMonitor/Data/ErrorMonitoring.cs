@@ -171,7 +171,7 @@ namespace ProjectMonitor.Api.Data
                         {
                             projectName = error.ProjectName,
                             projectError = error.ErrorDescription,
-                            projectErrorStartDate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize()
+                            projectErrorStartDate = DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize(true)
                         };
 
                         var result = MessageHelper.SendEmail(AppConfig.MMSApiKey, AppConfig.ToEmailAddress, AppConfig.ToEmailAddressName, AppConfig.FromEmailAddress, AppConfig.FromEmailAddressName, emailContent, AppConfig.PMErrorsTemplateId);
@@ -184,7 +184,7 @@ namespace ProjectMonitor.Api.Data
 
                     if (!error.TextAlertSent)
                     {
-                        var messageContent = $"Project Errored: {error.ProjectName} \n Description: {error.ErrorDescription} \n Date started: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize(false)}";
+                        var messageContent = $"Project Errored: {error.ProjectName} \n Description: {error.ErrorDescription} \n Date started: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize(true)}";
                         var result = MessageHelper.SendTextMessage(AppConfig.MMSApiKey, AppConfig.ChatId, messageContent);
 
                         if (result)
