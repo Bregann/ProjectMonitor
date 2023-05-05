@@ -184,7 +184,7 @@ namespace ProjectMonitor.Api.Data
 
                     if (!error.TextAlertSent)
                     {
-                        var messageContent = $"Project Errored: {error.ProjectName} \n Description: {error.ErrorDescription} \n Date started: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize()}";
+                        var messageContent = $"Project Errored: {error.ProjectName} \n Description: {error.ErrorDescription} \n Date started: {DateTimeHelper.ConvertDateTimeToLocalTime("GMT Standard Time", error.DateStarted).Humanize(false)}";
                         var result = MessageHelper.SendTextMessage(AppConfig.MMSApiKey, AppConfig.ChatId, messageContent);
 
                         if (result)
