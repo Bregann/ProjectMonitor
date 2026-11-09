@@ -1,13 +1,12 @@
 ﻿@page "/"
 @inherits DashboardComponentBase
+@inject NavigationManager Navigation
 
 <PageTitle>At a glance · Project Monitor</PageTitle>
 
-<div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-6">
-    <div>
-        <MudText Typo="Typo.h4" Class="page-title">At a glance</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">@SummaryLine</MudText>
-    </div>
+<div class="mb-6">
+    <MudText Typo="Typo.h4" Class="page-title">At a glance</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@_data.SummaryLine</MudText>
 </div>
 
 @* ── Summary tiles ─────────────────────────────────────────── *@
@@ -16,17 +15,10 @@
         <MudPaper Class="tile" Outlined="true">
             <MudText Typo="Typo.overline" Color="Color.Secondary">Projects</MudText>
             <div class="tile-value">
-                <span class="@(_critical > 0 ? "text-error" : _warning > 0 ? "text-warning" : "text-success")">@_healthy</span><span class="tile-of">/ @_rows.Count healthy</span>
+                <span class="@(_tiles.CriticalProjects > 0 ? "text-error" : _tiles.WarningProjects > 0 ? "text-warning" : "text-success")">@_tiles.HealthyProjects</span><span class="tile-of">/ @_tiles.TotalProjects healthy</span>
             </div>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @if (_critical + _warning == 0)
-                {
-                    <span>Nothing needs attention</span>
-                }
-                else
-                {
-                    <span>@_critical critical · @_warning warning</span>
-                }
+                @(_tiles.CriticalProjects + _tiles.WarningProjects == 0 ? "Nothing needs attention" : $"{_tiles.CriticalProjects} critical · {_tiles.WarningProjects} warning")
             </MudText>
         </MudPaper>
     </MudItem>
@@ -34,10 +26,10 @@
         <MudPaper Class="tile" Outlined="true">
             <MudText Typo="Typo.overline" Color="Color.Secondary">Services up</MudText>
             <div class="tile-value">
-                <span class="@(_servicesDown > 0 ? "text-error" : "text-success")">@_servicesUp</span><span class="tile-of">/ @_servicesTotal</span>
+                <span class="@(_tiles.ServicesDown > 0 ? "text-error" : "text-success")">@_tiles.ServicesUp</span><span class="tile-of">/ @_tiles.ServicesTotal</span>
             </div>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @(_servicesTotal == 0 ? "No services configured" : _servicesDown > 0 ? $"{_servicesDown} down" : $"{Format.Percent(_averageUptime)} average over 24h")
+                @(_tiles.ServicesTotal == 0 ? "No services configured" : _tiles.ServicesDown > 0 ? $"{_tiles.ServicesDown} down" : $"{Format.Percent(_tiles.AverageUptime24h)} average over 24h")
             </MudText>
         </MudPaper>
     </MudItem>
@@ -45,10 +37,10 @@
         <MudPaper Class="tile" Outlined="true">
             <MudText Typo="Typo.overline" Color="Color.Secondary">Vulnerabilities</MudText>
             <div class="tile-value">
-                <span class="@(_criticalVulns > 0 ? "text-error" : _highVulns > 0 ? "text-warning" : "text-success")">@(_criticalVulns + _highVulns)</span><span class="tile-of">critical / high</span>
+                <span class="@(_tiles.CriticalVulnerabilities > 0 ? "text-error" : _tiles.HighVulnerabilities > 0 ? "text-warning" : "text-success")">@(_tiles.CriticalVulnerabilities + _tiles.HighVulnerabilities)</span><span class="tile-of">critical / high</span>
             </div>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @(_alertAccessMissing > 0 ? $"Can't read alerts for {_alertAccessMissing} {(_alertAccessMissing == 1 ? "repo" : "repos")}" : $"{_otherVulns} medium / low")
+                @(_tiles.ReposWithoutAlertAccess > 0 ? $"Can't read alerts for {_tiles.ReposWithoutAlertAccess} {(_tiles.ReposWithoutAlertAccess == 1 ? "repo" : "repos")}" : $"{_tiles.OtherVulnerabilities} medium / low")
             </MudText>
         </MudPaper>
     </MudItem>
@@ -56,10 +48,10 @@
         <MudPaper Class="tile" Outlined="true">
             <MudText Typo="Typo.overline" Color="Color.Secondary">GitHub Actions</MudText>
             <div class="tile-value">
-                <span class="@(_failingWorkflows > 0 ? "text-warning" : "")">@_activeRuns.Count</span><span class="tile-of">running</span>
+                <span class="@(_tiles.FailingWorkflows > 0 ? "text-warning" : "")">@_tiles.RunningWorkflows</span><span class="tile-of">running</span>
             </div>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @(_failingWorkflows > 0 ? $"{_failingWorkflows} failing on main" : "All passing on main") · @_renovatePrs update @(_renovatePrs == 1 ? "PR" : "PRs")
+                @(_tiles.FailingWorkflows > 0 ? $"{_tiles.FailingWorkflows} failing on main" : "All passing on main") · @_tiles.UpdatePullRequests update @(_tiles.UpdatePullRequests == 1 ? "PR" : "PRs")
             </MudText>
         </MudPaper>
     </MudItem>
@@ -82,40 +74,40 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (Row row in _rows)
+            @foreach (ProjectRowDto row in _data.Projects)
             {
-                <tr class="clickable" @onclick="@(() => Navigation.NavigateTo($"/projects/{row.Snapshot.Project.Slug}"))">
+                <tr class="clickable" @onclick="@(() => Navigation.NavigateTo($"/projects/{row.Slug}"))">
                     <td>
-                        <MudText Typo="Typo.body1" Class="font-weight-medium">@row.Snapshot.Project.Name</MudText>
-                        @if (row.Snapshot.Project.Description is not null)
+                        <MudText Typo="Typo.body1" Class="font-weight-medium">@row.Name</MudText>
+                        @if (row.Description is not null)
                         {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@row.Snapshot.Project.Description</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@row.Description</MudText>
                         }
                     </td>
                     <td><HealthChip Level="row.Health.Level" HasData="row.Health.HasData" /></td>
                     <td>
-                        @if (row.Snapshot.Endpoints.Count == 0)
+                        @if (row.Endpoints.Count == 0)
                         {
                             <MudText Typo="Typo.body2" Color="Color.Secondary">–</MudText>
                         }
                         else
                         {
                             <div class="d-flex align-center gap-2">
-                                @foreach (EndpointStatus endpoint in row.Snapshot.Endpoints)
+                                @foreach (EndpointStatus endpoint in row.Endpoints)
                                 {
                                     <MudTooltip Text="@($"{endpoint.Name}: {(endpoint.IsUp is null ? "not checked yet" : endpoint.IsUp == true ? $"up · {endpoint.ResponseTimeMs} ms" : "down")}")">
                                         <span class="status-dot @(endpoint.IsUp is null ? "pending" : endpoint.IsUp == true ? "healthy" : "critical")"></span>
                                     </MudTooltip>
                                 }
-                                <MudText Typo="Typo.body2" Color="Color.Secondary">@Format.Percent(AverageUptime(row.Snapshot.Endpoints))</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@Format.Percent(row.AverageUptime24h)</MudText>
                             </div>
                         }
                     </td>
                     <td>
-                        @if (row.Snapshot.GitHub is { } github && github.LatestRunPerWorkflow.Count > 0)
+                        @if (row.LatestRuns.Count > 0)
                         {
                             <div class="d-flex gap-1" @onclick:stopPropagation="true">
-                                @foreach (WorkflowRunInfo run in github.LatestRunPerWorkflow)
+                                @foreach (WorkflowRunInfo run in row.LatestRuns)
                                 {
                                     <RunStatusIcon Run="run" />
                                 }
@@ -127,11 +119,11 @@
                         }
                     </td>
                     <td>
-                        @if (LastDeploy(row.Snapshot) is { } deploy)
+                        @if (row.LastDeploy is { } deploy)
                         {
                             <div class="d-flex align-center gap-1" @onclick:stopPropagation="true">
                                 <RunStatusIcon Run="deploy" />
-                                <MudText Typo="Typo.body2">@Format.Ago(deploy.UpdatedUtc, NowUtc)</MudText>
+                                <MudText Typo="Typo.body2" Class="nowrap">@Format.Ago(deploy.UpdatedUtc, NowUtc)</MudText>
                             </div>
                         }
                         else
@@ -140,16 +132,14 @@
                         }
                     </td>
                     <td>
-                        @if (row.Snapshot.GitHub is { } gh)
+                        @if (row.HasGitHubData)
                         {
-                            <SeverityCounts Alerts="gh.SecurityAlerts" Error="gh.SecurityAlertsError" />
+                            <SeverityCounts Alerts="row.SecurityAlerts" Error="row.SecurityAlertsError" />
                         }
                     </td>
-                    <td>
-                        <MudText Typo="Typo.body2">@(row.Snapshot.GitHub?.OpenPullRequests.Count.ToString() ?? "–")</MudText>
-                    </td>
+                    <td><MudText Typo="Typo.body2">@(row.OpenPullRequests?.ToString() ?? "–")</MudText></td>
                     <td class="top-issue">
-                        @if (row.Health.Issues.FirstOrDefault(x => x.Level >= HealthLevel.Warning) is { } top)
+                        @if (row.TopIssue is { } top)
                         {
                             <MudText Typo="Typo.body2" Color="@Format.HealthColor(top.Level)">@top.Message</MudText>
                         }
@@ -169,7 +159,7 @@
     <MudItem xs="12" lg="7">
         <MudPaper Outlined="true" Class="pa-4 full-height">
             <MudText Typo="Typo.h6" Class="mb-2">Needs attention</MudText>
-            @if (_attention.Count == 0)
+            @if (_data.NeedsAttention.Count == 0)
             {
                 <div class="empty-state">
                     <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" />
@@ -179,14 +169,14 @@
             else
             {
                 <MudList T="string" Dense="true" Padding="false">
-                    @foreach ((string project, string slug, HealthIssue issue) in _attention)
+                    @foreach (AttentionItemDto item in _data.NeedsAttention)
                     {
-                        <MudListItem T="string" Href="@(issue.Url ?? $"/projects/{slug}")" Target="@(issue.Url is null ? null : "_blank")">
+                        <MudListItem T="string" Href="@(item.Issue.Url ?? $"/projects/{item.ProjectSlug}")" Target="@(item.Issue.Url is null ? null : "_blank")">
                             <div class="d-flex align-center gap-3">
-                                <MudIcon Icon="@Format.IssueIcon(issue.Level)" Color="@Format.IssueColor(issue.Level)" Size="Size.Small" />
+                                <MudIcon Icon="@Format.IssueIcon(item.Issue.Level)" Color="@Format.IssueColor(item.Issue.Level)" Size="Size.Small" />
                                 <div>
-                                    <MudText Typo="Typo.body2">@issue.Message</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@project · @issue.Category</MudText>
+                                    <MudText Typo="Typo.body2">@item.Issue.Message</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.ProjectName · @item.Issue.Category</MudText>
                                 </div>
                             </div>
                         </MudListItem>
@@ -200,7 +190,7 @@
     <MudItem xs="12" lg="5">
         <MudPaper Outlined="true" Class="pa-4 full-height">
             <MudText Typo="Typo.h6" Class="mb-2">Running now</MudText>
-            @if (_activeRuns.Count == 0)
+            @if (_data.RunningNow.Count == 0)
             {
                 <div class="empty-state">
                     <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Default" />
@@ -210,14 +200,14 @@
             else
             {
                 <MudList T="string" Dense="true" Padding="false">
-                    @foreach ((string project, WorkflowRunInfo run) in _activeRuns)
+                    @foreach (ActiveRunDto item in _data.RunningNow)
                     {
-                        <MudListItem T="string" Href="@run.Url" Target="_blank">
+                        <MudListItem T="string" Href="@item.Run.Url" Target="_blank">
                             <div class="d-flex align-center gap-3">
-                                <RunStatusIcon Run="run" />
+                                <RunStatusIcon Run="item.Run" />
                                 <div>
-                                    <MudText Typo="Typo.body2">@project · @run.WorkflowName</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@run.Title · @run.Branch · started @Format.Ago(run.CreatedUtc, NowUtc)</MudText>
+                                    <MudText Typo="Typo.body2">@item.ProjectName · @item.Run.WorkflowName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Run.Title · @item.Run.Branch · started @Format.Ago(item.Run.CreatedUtc, NowUtc)</MudText>
                                 </div>
                             </div>
                         </MudListItem>
@@ -229,75 +219,12 @@
 </MudGrid>
 
 @code {
-    [Inject]
-    private NavigationManager Navigation { get; set; } = default!;
+    private AtAGlanceDto _data = default!;
+    private SummaryTilesDto _tiles = default!;
 
-    private sealed record Row(ProjectSnapshot Snapshot, ProjectHealth Health);
-
-    private List<Row> _rows = [];
-    private List<(string Project, string Slug, HealthIssue Issue)> _attention = [];
-    private List<(string Project, WorkflowRunInfo Run)> _activeRuns = [];
-    private int _healthy, _warning, _critical;
-    private int _servicesUp, _servicesDown, _servicesTotal;
-    private double? _averageUptime;
-    private int _criticalVulns, _highVulns, _otherVulns, _alertAccessMissing;
-    private int _failingWorkflows, _renovatePrs;
-
-    private string SummaryLine => _critical > 0
-        ? $"{_critical} {(_critical == 1 ? "project needs" : "projects need")} attention now"
-        : _warning > 0 ? "No outages, a few things to look at" : "Everything looks good";
-
-    protected override void OnDataChanged()
+    protected override void LoadData()
     {
-        _rows = State.GetProjects()
-            .Select(p => new Row(p, HealthEvaluator.Evaluate(p, NowUtc)))
-            .OrderByDescending(r => r.Health.Level)
-            .ThenBy(r => r.Snapshot.Project.Name)
-            .ToList();
-
-        _healthy = _rows.Count(r => r.Health.Level <= HealthLevel.Info);
-        _warning = _rows.Count(r => r.Health.Level == HealthLevel.Warning);
-        _critical = _rows.Count(r => r.Health.Level == HealthLevel.Critical);
-
-        List<EndpointStatus> endpoints = _rows.SelectMany(r => r.Snapshot.Endpoints).ToList();
-        _servicesTotal = endpoints.Count;
-        _servicesUp = endpoints.Count(e => e.IsUp == true);
-        _servicesDown = endpoints.Count(e => e.IsUp == false);
-        _averageUptime = AverageUptime(endpoints);
-
-        List<GitHubSnapshot> repos = _rows.Select(r => r.Snapshot.GitHub).OfType<GitHubSnapshot>().ToList();
-        List<SecurityAlertInfo> alerts = repos.SelectMany(g => g.SecurityAlerts).ToList();
-        _criticalVulns = alerts.Count(a => a.Severity == "critical");
-        _highVulns = alerts.Count(a => a.Severity == "high");
-        _otherVulns = alerts.Count - _criticalVulns - _highVulns;
-        _alertAccessMissing = repos.Count(g => g.SecurityAlertsError is not null);
-        _failingWorkflows = repos.Sum(g => g.LatestRunPerWorkflow.Count(r => r.IsFailure));
-        _renovatePrs = repos.Sum(g => g.OpenPullRequests.Count(p => p.IsRenovate));
-
-        _attention = _rows
-            .SelectMany(r => r.Health.Issues
-                .Where(i => i.Level >= HealthLevel.Warning)
-                .Select(i => (r.Snapshot.Project.Name, r.Snapshot.Project.Slug, i)))
-            .OrderByDescending(x => x.i.Level)
-            .ToList();
-
-        _activeRuns = _rows
-            .SelectMany(r => (r.Snapshot.GitHub?.ActiveRuns ?? []).Select(run => (r.Snapshot.Project.Name, run)))
-            .OrderByDescending(x => x.run.CreatedUtc)
-            .ToList();
-    }
-
-    private static double? AverageUptime(IEnumerable<EndpointStatus> endpoints)
-    {
-        List<double> values = endpoints.Where(e => e.Uptime24h is not null).Select(e => e.Uptime24h!.Value).ToList();
-        return values.Count == 0 ? null : values.Average();
-    }
-
-    private static WorkflowRunInfo? LastDeploy(ProjectSnapshot snapshot)
-    {
-        return snapshot.GitHub?.LatestRunPerWorkflow
-            .Where(r => HealthEvaluator.IsCriticalWorkflow(r.WorkflowName) && !r.WorkflowName.Contains("renovate", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(r => r.UpdatedUtc)
-            .FirstOrDefault();
+        _data = Dashboard.GetAtAGlance();
+        _tiles = _data.Tiles;
     }
 }

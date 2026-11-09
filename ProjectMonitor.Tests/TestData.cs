@@ -1,5 +1,5 @@
-using ProjectMonitor.Domain.Configuration;
-using ProjectMonitor.Domain.State;
+using ProjectMonitor.Domain.DTOs.Configuration;
+using ProjectMonitor.Domain.DTOs.Monitoring;
 
 namespace ProjectMonitor.Tests
 {
@@ -7,9 +7,9 @@ namespace ProjectMonitor.Tests
     {
         public static readonly DateTime Now = new(2026, 11, 9, 12, 0, 0, DateTimeKind.Utc);
 
-        public static ProjectOptions Project(string? repository = "Orbit")
+        public static ProjectConfig Project(string? repository = "Orbit")
         {
-            return new ProjectOptions { Slug = "orbit", Name = "Orbit", Repository = repository };
+            return new ProjectConfig { Slug = "orbit", Name = "Orbit", Repository = repository };
         }
 
         public static EndpointStatus Endpoint(bool? isUp, double? uptime24h = 100, string? error = null)

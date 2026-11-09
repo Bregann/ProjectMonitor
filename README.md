@@ -40,17 +40,24 @@ Projects and their URLs live in `ProjectMonitor.Core/appsettings.json` under `Mo
 
 By default, any HTTP response below 500 counts as "up" (an API answering 401 or 404 on its root is still running). Set `ExpectedStatusCodes` to be stricter.
 
-### Environment variables (Unraid container)
+### Settings (EnvironmentalSettings table)
 
-| Variable | Required | What |
+Like the other projects, secrets live in the `EnvironmentalSettings` table (`Key` / `Value`) and are loaded at startup. **Restart the container after changing them.**
+
+| Key | Required | What |
 |---|---|---|
-| `PMConnString` | ✅ | PostgreSQL connection string. Tables are created automatically on startup. |
-| `Monitor__DashboardPassword` | ✅ | The password for the login page |
-| `Monitor__GitHubToken` | ✅ | GitHub token (see below) |
-| `Monitor__Alerts__CommsSenderApiKey` | for alerts | CommsSender's **server** key (`CommsSenderApiKey`) |
-| `Monitor__Alerts__TelegramChatId` | for alerts | Telegram chat to send alerts to |
+| `DashboardPassword` | ✅ | The password for the login page |
+| `GitHubToken` | ✅ | GitHub token (see below) |
+| `CommsSenderApiKey` | for alerts | CommsSender's **server** key |
+| `TelegramChatId` | for alerts | Telegram chat to send alerts to |
 
-Any setting in `appsettings.json` can be overridden the same way, e.g. `Monitor__UptimeCheckSeconds=30`.
+```sql
+INSERT INTO "EnvironmentalSettings" ("Key", "Value") VALUES
+  ('DashboardPassword', '...'),
+  ('GitHubToken', 'github_pat_...');
+```
+
+The only environment variable is `PMConnString` (the PostgreSQL connection string). Tables, including Hangfire's, are created automatically on startup.
 
 ### GitHub token
 
@@ -65,19 +72,41 @@ Create a **fine-grained** token at https://github.com/settings/personal-access-t
 
 This is separate from Renovate's token and can only read.
 
+## Background jobs
+
+All background work is Hangfire recurring jobs (`Helpers/HangfireJobSetup.cs`), visible at `/hangfire` (behind the same login):
+
+| Job | Schedule | What |
+|---|---|---|
+| `CheckUptime` | every minute | HTTP check of every endpoint |
+| `PollGitHub` | every 2 minutes | Actions, PRs, security alerts and issues for every repo |
+| `CheckAlerts` | every 30 seconds | Telegram alert when a critical problem starts or clears |
+| `PruneUptimeChecks` | hourly | Deletes checks older than `UptimeRetentionDays` |
+
 ## Deployment
 
 Pushing to `main` builds the image on the Unraid runner and pushes `192.168.1.100:5000/projectmonitor:latest`. Then force-update the container on Unraid. It listens on port **8080**, and `/healthz` returns 200 for health checks.
 
+## Project layout
+
+Same structure as the other projects:
+
+- **ProjectMonitor.Core**: the Blazor front end. Pages only call `IDashboardService` and render the DTOs it returns.
+- **ProjectMonitor.Domain**: everything else.
+  - `Database/`: context, models and migrations
+  - `DTOs/`: `Configuration`, `GitHub` (API responses), `Monitoring` (in-memory state), `Dashboard` (what pages receive)
+  - `Services/`: `Dashboard` (for the front end), plus `Uptime`, `GitHub` and `Alerts` (Hangfire jobs)
+  - `Helpers/`: API clients, settings, health rules and job setup
+  - `Interfaces/`: `Api`, `Jobs` and `Helpers`
+- **ProjectMonitor.Tests**: NUnit tests
+
 ## Development
 
-```bash
-dotnet run --project ProjectMonitor.Core
-```
+Run `ProjectMonitor.Core` in Debug (Visual Studio or `dotnet run --project ProjectMonitor.Core`). Like Orbit, Debug starts a **Testcontainers PostgreSQL** database (Docker needs to be running) and Hangfire uses in-memory storage. The test database is seeded with the password `password`. To see real security alerts locally, set the `PMGitHubToken` environment variable before running.
 
-Without `PMConnString` it uses an in-memory database, and without a dashboard password any password works (Development only). Tests: `dotnet test`. After changing `MonitorDbContext`, add a migration:
+Tests: `dotnet test`. After changing `AppDbContext`, add a migration:
 
 ```bash
 dotnet tool restore
-dotnet ef migrations add <Name> --project ProjectMonitor.Domain --startup-project ProjectMonitor.Domain --output-dir Data/Migrations
+dotnet ef migrations add <Name> --project ProjectMonitor.Domain --startup-project ProjectMonitor.Domain --output-dir Database/Migrations
 ```

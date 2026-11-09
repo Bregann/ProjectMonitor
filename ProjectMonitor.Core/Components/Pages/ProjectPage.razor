@@ -1,25 +1,25 @@
 @page "/projects/{Slug}"
 @inherits DashboardComponentBase
 
-@if (_snapshot is null)
+@if (_details is null)
 {
     <PageTitle>Not found · Project Monitor</PageTitle>
     <MudAlert Severity="Severity.Warning">There's no project called "@Slug". Check the Monitor:Projects list in appsettings.json.</MudAlert>
     return;
 }
 
-<PageTitle>@_snapshot.Project.Name · Project Monitor</PageTitle>
+<PageTitle>@_details.Name · Project Monitor</PageTitle>
 
 @* ── Header ─────────────────────────────────────────────────── *@
 <div class="d-flex align-start justify-space-between flex-wrap gap-3 mb-6">
     <div>
         <div class="d-flex align-center gap-3">
-            <MudText Typo="Typo.h4" Class="page-title">@_snapshot.Project.Name</MudText>
-            <HealthChip Level="_health.Level" HasData="_health.HasData" />
+            <MudText Typo="Typo.h4" Class="page-title">@_details.Name</MudText>
+            <HealthChip Level="_details.Health.Level" HasData="_details.Health.HasData" />
         </div>
-        @if (_snapshot.Project.Description is not null)
+        @if (_details.Description is not null)
         {
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@_snapshot.Project.Description</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@_details.Description</MudText>
         }
     </div>
     @if (_github is not null)
@@ -35,26 +35,26 @@
     }
 </div>
 
-@if (_snapshot.GitHubError is not null)
+@if (_details.GitHubError is not null)
 {
-    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">@_snapshot.GitHubError</MudAlert>
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">@_details.GitHubError</MudAlert>
 }
 
 <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pt-4" Outlined="true">
     @* ── Issues ───────────────────────────────────────────────── *@
-    <MudTabPanel Text="Issues" BadgeData="@(_warningCount > 0 ? _warningCount : null)" BadgeColor="Color.Warning">
-        @if (_health.Issues.Count == 0)
+    <MudTabPanel Text="Issues" BadgeData="@(_details.WarningCount > 0 ? _details.WarningCount : null)" BadgeColor="Color.Warning">
+        @if (_details.Health.Issues.Count == 0)
         {
             <div class="empty-state">
                 <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" />
-                <MudText Typo="Typo.body2" Color="Color.Secondary">@(_health.HasData ? "No issues." : "Waiting for the first checks to finish.")</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@(_details.Health.HasData ? "No issues." : "Waiting for the first checks to finish.")</MudText>
             </div>
         }
         else
         {
             <MudPaper Outlined="true">
                 <MudList T="string" Dense="true" Padding="false">
-                    @foreach (HealthIssue issue in _health.Issues)
+                    @foreach (HealthIssue issue in _details.Health.Issues)
                     {
                         <MudListItem T="string" Href="@issue.Url" Target="_blank">
                             <div class="d-flex align-center gap-3">
@@ -73,7 +73,7 @@
 
     @* ── Services ─────────────────────────────────────────────── *@
     <MudTabPanel Text="Services">
-        @if (_snapshot.Endpoints.Count == 0)
+        @if (_details.Endpoints.Count == 0)
         {
             <div class="empty-state">
                 <MudIcon Icon="@Icons.Material.Filled.Language" />
@@ -96,7 +96,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (EndpointStatus endpoint in _snapshot.Endpoints)
+                        @foreach (EndpointStatus endpoint in _details.Endpoints)
                         {
                             <tr>
                                 <td>
@@ -266,21 +266,17 @@
     [Parameter]
     public string Slug { get; set; } = "";
 
-    private ProjectSnapshot? _snapshot;
+    private ProjectDetailsDto? _details;
     private GitHubSnapshot? _github;
-    private ProjectHealth _health = new(HealthLevel.Healthy, [], false);
-    private int _warningCount;
 
     protected override void OnParametersSet()
     {
-        OnDataChanged();
+        LoadData();
     }
 
-    protected override void OnDataChanged()
+    protected override void LoadData()
     {
-        _snapshot = State.GetProject(Slug);
-        _github = _snapshot?.GitHub;
-        _health = _snapshot is null ? new(HealthLevel.Healthy, [], false) : HealthEvaluator.Evaluate(_snapshot, NowUtc);
-        _warningCount = _health.Issues.Count(x => x.Level >= HealthLevel.Warning);
+        _details = Dashboard.GetProjectDetails(Slug);
+        _github = _details?.GitHub;
     }
 }

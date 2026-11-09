@@ -1,6 +1,6 @@
 using MudBlazor;
-using ProjectMonitor.Domain.Health;
-using ProjectMonitor.Domain.State;
+using ProjectMonitor.Domain.DTOs.Monitoring;
+using ProjectMonitor.Domain.Enums;
 
 namespace ProjectMonitor.Core.Components.Shared
 {

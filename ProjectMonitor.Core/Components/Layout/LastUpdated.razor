@@ -1,12 +1,17 @@
 @inherits DashboardComponentBase
 
-<MudTooltip Text="@($"GitHub: {Format.Ago(State.LastGitHubPollUtc, NowUtc)} · Uptime: {Format.Ago(State.LastUptimeCheckUtc, NowUtc)}")">
+<MudTooltip Text="@($"GitHub: {Format.Ago(_freshness.LastGitHubPollUtc, NowUtc)} · Uptime: {Format.Ago(_freshness.LastUptimeCheckUtc, NowUtc)}")">
     <MudText Typo="Typo.caption" Class="mr-2 last-updated">
-        <span class="status-dot @(State.LastGitHubPollUtc is null ? "pending" : "healthy")"></span>
-        Updated @Format.Ago(Latest, NowUtc)
+        <span class="status-dot @(_freshness.LatestUtc is null ? "pending" : "healthy")"></span>
+        Updated @Format.Ago(_freshness.LatestUtc, NowUtc)
     </MudText>
 </MudTooltip>
 
 @code {
-    private DateTime? Latest => new[] { State.LastGitHubPollUtc, State.LastUptimeCheckUtc }.Max();
+    private DataFreshnessDto _freshness = new();
+
+    protected override void LoadData()
+    {
+        _freshness = Dashboard.GetDataFreshness();
+    }
 }

@@ -7,11 +7,10 @@
 @using System.Text
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
-@using Microsoft.Extensions.Options
-@using ProjectMonitor.Domain.Configuration
-@inject IOptionsMonitor<MonitorOptions> Options
+@using ProjectMonitor.Domain.Enums
+@using ProjectMonitor.Domain.Interfaces.Helpers
+@inject IEnvironmentalSettingHelper EnvironmentalSettingHelper
 @inject NavigationManager Navigation
-@inject IWebHostEnvironment Environment
 
 <PageTitle>Sign in · Project Monitor</PageTitle>
 
@@ -22,7 +21,7 @@
             <h1>Project Monitor</h1>
         </div>
 
-        <EditForm Model="Input!" FormName="login" OnValidSubmit="SignInAsync" method="post">
+        <EditForm Model="Input!" FormName="login" OnValidSubmit="SignIn" method="post">
             <label for="password">Password</label>
             <InputText id="password" type="password" @bind-Value="Input!.Password" autocomplete="current-password" autofocus />
 
@@ -34,9 +33,9 @@
             <button type="submit">Sign in</button>
         </EditForm>
 
-        @if (string.IsNullOrEmpty(Options.CurrentValue.DashboardPassword))
+        @if (EnvironmentalSettingHelper.TryGetEnvironmentalSettingValue(EnvironmentalSettingEnum.DashboardPassword) is null)
         {
-            <p class="login-hint">Development mode: no password is set, so any password works.</p>
+            <p class="login-error">No dashboard password is set yet: add a DashboardPassword row to the EnvironmentalSettings table.</p>
         }
     </div>
 </main>
@@ -58,12 +57,11 @@
         Input ??= new();
     }
 
-    private async Task SignInAsync()
+    private async Task SignIn()
     {
-        string expected = Options.CurrentValue.DashboardPassword;
-        bool allowAnyInDevelopment = string.IsNullOrEmpty(expected) && Environment.IsDevelopment();
+        string? expected = EnvironmentalSettingHelper.TryGetEnvironmentalSettingValue(EnvironmentalSettingEnum.DashboardPassword);
 
-        if (!allowAnyInDevelopment && !PasswordMatches(Input?.Password ?? "", expected))
+        if (expected is null || !PasswordMatches(Input?.Password ?? "", expected))
         {
             // Slow down guessing a little
             await Task.Delay(500);
@@ -81,11 +79,6 @@
 
     private static bool PasswordMatches(string provided, string expected)
     {
-        if (string.IsNullOrEmpty(expected))
-        {
-            return false;
-        }
-
         byte[] a = SHA256.HashData(Encoding.UTF8.GetBytes(provided));
         byte[] b = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
         return CryptographicOperations.FixedTimeEquals(a, b);
