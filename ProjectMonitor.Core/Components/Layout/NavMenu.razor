@@ -1,0 +1,16 @@
+@inherits DashboardComponentBase
+
+<MudNavMenu Class="pt-2">
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">At a glance</MudNavLink>
+    <MudText Typo="Typo.overline" Class="px-4 pt-4 pb-1 nav-heading">Projects</MudText>
+    @foreach (ProjectSnapshot project in State.GetProjects())
+    {
+        ProjectHealth health = HealthEvaluator.Evaluate(project, NowUtc);
+        <MudNavLink Href="@($"/projects/{project.Project.Slug}")" Match="NavLinkMatch.Prefix">
+            <span class="d-flex align-center gap-2">
+                <span class="status-dot @(health.HasData ? health.Level.ToString().ToLowerInvariant() : "pending")"></span>
+                @project.Project.Name
+            </span>
+        </MudNavLink>
+    }
+</MudNavMenu>

@@ -1,0 +1,304 @@
+html, body {
+    background: #0f1218;
+    font-family: Inter, system-ui, sans-serif;
+}
+
+.app-bar {
+    border-bottom: 1px solid #262c37;
+}
+
+.app-drawer {
+    border-right: 1px solid #262c37;
+}
+
+.app-title {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.page-title {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.nav-heading {
+    color: #6b7485;
+    letter-spacing: 0.08em;
+}
+
+.last-updated {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #9aa3b2;
+}
+
+/* ── Status dots ─────────────────────────────────────────── */
+.status-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #3fb950;
+}
+
+.status-dot.info,
+.status-dot.healthy {
+    background: #3fb950;
+}
+
+.status-dot.warning {
+    background: #d29922;
+}
+
+.status-dot.critical {
+    background: #f85149;
+    box-shadow: 0 0 0 3px rgba(248, 81, 73, 0.2);
+}
+
+.status-dot.pending {
+    background: #4a5262;
+}
+
+/* ── Summary tiles ───────────────────────────────────────── */
+.tile {
+    padding: 16px 20px;
+    height: 100%;
+}
+
+.tile-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 2px 0 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.tile-of {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #9aa3b2;
+    margin-left: 6px;
+}
+
+.text-success {
+    color: #3fb950;
+}
+
+.text-warning {
+    color: #d29922;
+}
+
+.text-error {
+    color: #f85149;
+}
+
+/* ── Tables ─────────────────────────────────────────────── */
+.projects-table tr.clickable {
+    cursor: pointer;
+}
+
+.projects-table td {
+    vertical-align: middle;
+}
+
+.mud-table-root td.nowrap,
+.mud-table-root th.nowrap {
+    white-space: nowrap;
+}
+
+.top-issue {
+    max-width: 320px;
+}
+
+code {
+    font-size: 0.8rem;
+    color: #9aa3b2;
+}
+
+.min-w-0 {
+    min-width: 0;
+}
+
+.full-height {
+    height: 100%;
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 0;
+}
+
+/* ── Workflow run icons ─────────────────────────────────── */
+.run-icon {
+    display: inline-flex;
+    line-height: 0;
+}
+
+.run-icon.spinning .mud-icon-root {
+    animation: spin 1.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Uptime strip ───────────────────────────────────────── */
+.uptime-strip {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+}
+
+.uptime-bar {
+    display: block;
+    width: 6px;
+    height: 20px;
+    border-radius: 2px;
+}
+
+.uptime-bar.good {
+    background: #3fb950;
+}
+
+.uptime-bar.degraded {
+    background: #d29922;
+}
+
+.uptime-bar.bad {
+    background: #f85149;
+}
+
+.uptime-bar.none {
+    background: #262c37;
+}
+
+/* ── Login ──────────────────────────────────────────────── */
+.login {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    color: #e6e9ef;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 360px;
+    background: #171b23;
+    border: 1px solid #262c37;
+    border-radius: 14px;
+    padding: 32px 28px;
+}
+
+.login-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.login-brand h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.login-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #3fb950;
+}
+
+.login label {
+    display: block;
+    font-size: 0.85rem;
+    color: #9aa3b2;
+    margin-bottom: 6px;
+}
+
+.login input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #323a48;
+    background: #0f1218;
+    color: #e6e9ef;
+    font-size: 1rem;
+}
+
+.login input:focus {
+    outline: 2px solid #7c9cff;
+    outline-offset: 1px;
+}
+
+.login button {
+    width: 100%;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #7c9cff;
+    color: #0f1218;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.login button:hover {
+    background: #96afff;
+}
+
+.login-error {
+    color: #f85149;
+    font-size: 0.9rem;
+    margin: 10px 0 0;
+}
+
+.login-hint {
+    color: #9aa3b2;
+    font-size: 0.8rem;
+    margin: 16px 0 0;
+}
+
+/* ── Blazor error bar ───────────────────────────────────── */
+#blazor-error-ui {
+    background: #f85149;
+    color: #fff;
+    bottom: 0;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 2000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}
+
+#blazor-error-ui a {
+    color: #fff;
+}
+
+/* ── Small screens ──────────────────────────────────────── */
+.app-title {
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .last-updated {
+        display: none;
+    }
+}

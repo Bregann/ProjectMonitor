@@ -1,0 +1,25 @@
+@* 24 bars, one per hour, oldest on the left *@
+<div class="uptime-strip" aria-label="Uptime per hour over the last 24 hours">
+    @foreach (UptimeBucket bucket in History)
+    {
+        <MudTooltip Text="@($"{Format.Local(bucket.StartUtc):HH:00}: {(bucket.UptimePercent is null ? "no checks" : Format.Percent(bucket.UptimePercent))}")">
+            <span class="uptime-bar @CssClass(bucket.UptimePercent)"></span>
+        </MudTooltip>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<UptimeBucket> History { get; set; } = [];
+
+    private static string CssClass(double? percent)
+    {
+        return percent switch
+        {
+            null => "none",
+            >= 99.9 => "good",
+            >= 95 => "degraded",
+            _ => "bad",
+        };
+    }
+}

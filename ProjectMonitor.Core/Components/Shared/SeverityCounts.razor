@@ -1,0 +1,27 @@
+@if (Error is not null)
+{
+    <MudTooltip Text="@Error">
+        <MudText Typo="Typo.body2" Color="Color.Secondary">No access</MudText>
+    </MudTooltip>
+}
+else if (Alerts.Count == 0)
+{
+    <MudText Typo="Typo.body2" Color="Color.Success">None</MudText>
+}
+else
+{
+    <div class="d-flex gap-1 flex-wrap">
+        @foreach (IGrouping<string, SecurityAlertInfo> group in Alerts.GroupBy(x => x.Severity))
+        {
+            <MudChip T="string" Size="Size.Small" Color="@Format.SeverityColor(group.Key)" Class="ma-0">@group.Count() @group.Key</MudChip>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<SecurityAlertInfo> Alerts { get; set; } = [];
+
+    [Parameter]
+    public string? Error { get; set; }
+}

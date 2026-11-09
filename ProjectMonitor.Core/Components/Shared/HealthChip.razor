@@ -1,0 +1,11 @@
+<MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@Format.HealthColor(Level)" Icon="@Format.HealthIcon(Level)" Class="ma-0">
+    @(HasData ? Format.HealthText(Level) : "Waiting for data")
+</MudChip>
+
+@code {
+    [Parameter, EditorRequired]
+    public HealthLevel Level { get; set; }
+
+    [Parameter]
+    public bool HasData { get; set; } = true;
+}
