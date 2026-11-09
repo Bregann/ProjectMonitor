@@ -90,7 +90,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 #if DEBUG
 GlobalConfiguration.Configuration.UseMemoryStorage();
 
-var postgresContainer = new PostgreSqlBuilder("postgres:16")
+var postgresContainer = new PostgreSqlBuilder("postgres:18")
     .WithDatabase("projectmonitorcontainer")
     .WithUsername("testuser")
     .WithPassword("testpass")
