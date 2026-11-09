@@ -18,9 +18,10 @@ namespace ProjectMonitor.Domain.Helpers
             List<HealthIssue> issues = [];
 
             AddEndpointIssues(project, issues);
+            AddCheckIssues(project, issues);
             AddGitHubIssues(project, nowUtc, issues);
 
-            bool hasData = project.Endpoints.Any(x => x.LastCheckedUtc is not null) || project.GitHub is not null;
+            bool hasData = project.Endpoints.Any(x => x.LastCheckedUtc is not null) || project.GitHub is not null || project.Checks.Count > 0;
             HealthLevel level = issues.Count == 0 ? HealthLevel.Healthy : issues.Max(x => x.Level);
 
             return new ProjectHealth(level, issues.OrderByDescending(x => x.Level).ToList(), hasData);
@@ -35,7 +36,7 @@ namespace ProjectMonitor.Domain.Helpers
                     string detail = endpoint.Error ?? (endpoint.StatusCode is int code ? $"HTTP {code}" : "no response");
                     issues.Add(new(
                         $"down:{endpoint.Key}",
-                        HealthLevel.Critical,
+                        endpoint.FailureLevel,
                         "Uptime",
                         $"{endpoint.Name} is down ({detail})",
                         endpoint.Url));
@@ -49,6 +50,19 @@ namespace ProjectMonitor.Domain.Helpers
                         $"{endpoint.Name} uptime is {uptime:0.##}% over the last 24 hours",
                         endpoint.Url));
                 }
+            }
+        }
+
+        private static void AddCheckIssues(ProjectSnapshot project, List<HealthIssue> issues)
+        {
+            foreach (CheckStatus check in project.Checks.Where(x => x.Level > HealthLevel.Healthy))
+            {
+                issues.Add(new(
+                    $"check:{check.CheckId}",
+                    check.Level,
+                    "Checks",
+                    $"{check.Name}: {check.Message}",
+                    $"/projects/{project.Project.Slug}"));
             }
         }
 

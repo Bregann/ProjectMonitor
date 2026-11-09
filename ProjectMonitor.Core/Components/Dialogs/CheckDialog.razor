@@ -1,0 +1,144 @@
+@inject IProjectsService ProjectsService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="dialog-form">
+            <MudSelect T="CheckTypeEnum" @bind-Value="Request.Type" Label="Type" Variant="Variant.Outlined" Disabled="CheckId is not null"
+                       HelperText="@TypeHelp(Request.Type)">
+                <MudSelectItem Value="CheckTypeEnum.Http">Website / API</MudSelectItem>
+                <MudSelectItem Value="CheckTypeEnum.Heartbeat">Heartbeat</MudSelectItem>
+                <MudSelectItem Value="CheckTypeEnum.Value">Reported value</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField @bind-Value="Request.Name" Label="Name" Variant="Variant.Outlined" Required="true" MaxLength="100"
+                          Placeholder="@NamePlaceholder(Request.Type)" />
+
+            @switch (Request.Type)
+            {
+                case CheckTypeEnum.Http:
+                    <MudTextField @bind-Value="Request.Url" Label="URL" Variant="Variant.Outlined" Placeholder="https://orbitapi.bregan.me" />
+                    <MudTextField @bind-Value="_statusCodes" Label="Expected status codes" Variant="Variant.Outlined" Placeholder="e.g. 200"
+                                  HelperText="Optional, comma-separated. When empty, any response below 500 counts as up." />
+                    break;
+
+                case CheckTypeEnum.Heartbeat:
+                    <MudNumericField T="int?" @bind-Value="Request.MaxAgeMinutes" Label="Must report at least every (minutes)" Variant="Variant.Outlined" Min="1" />
+                    break;
+
+                case CheckTypeEnum.Value:
+                    <MudTextField @bind-Value="Request.ValueKey" Label="Value name" Variant="Variant.Outlined" Placeholder="discordConnected"
+                                  HelperText="The key the project sends in its report" />
+                    <MudSelect T="ValueConditionEnum" @bind-Value="Request.Condition" Label="Passes when the value…" Variant="Variant.Outlined">
+                        <MudSelectItem Value="ValueConditionEnum.IsTrue">is true</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.IsFalse">is false</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.EqualTo">equals</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.NotEqualTo">doesn't equal</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.GreaterThan">is greater than</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.LessThan">is less than</MudSelectItem>
+                        <MudSelectItem Value="ValueConditionEnum.WithinMinutes">is a time within the last … minutes</MudSelectItem>
+                    </MudSelect>
+                    @if (Request.Condition is not (ValueConditionEnum.IsTrue or ValueConditionEnum.IsFalse))
+                    {
+                        <MudTextField @bind-Value="Request.ExpectedValue" Label="@(Request.Condition == ValueConditionEnum.WithinMinutes ? "Minutes" : "Compare with")" Variant="Variant.Outlined" />
+                    }
+                    <MudNumericField T="int?" @bind-Value="Request.MaxAgeMinutes" Label="Also fail if not reported for (minutes)" Variant="Variant.Outlined" Min="1"
+                                     HelperText="Optional: catches a value that's stopped being sent" Clearable="true" />
+                    break;
+            }
+
+            <MudSelect T="HealthLevel" @bind-Value="Request.FailureLevel" Label="When it fails" Variant="Variant.Outlined">
+                <MudSelectItem Value="HealthLevel.Warning">Warning</MudSelectItem>
+                <MudSelectItem Value="HealthLevel.Critical">Critical (also sends a Telegram alert)</MudSelectItem>
+            </MudSelect>
+
+            <MudSwitch T="bool" @bind-Value="Request.IsEnabled" Label="Enabled" Color="Color.Primary" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">@(CheckId is null ? "Add check" : "Save")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public int ProjectId { get; set; }
+
+    /// <summary>Null when adding a new check.</summary>
+    [Parameter]
+    public int? CheckId { get; set; }
+
+    [Parameter]
+    public SaveCheckRequest Request { get; set; } = new();
+
+    private string? _statusCodes;
+    private string? _error;
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _statusCodes = string.Join(", ", Request.ExpectedStatusCodes);
+    }
+
+    private async Task Save()
+    {
+        List<int> codes = [];
+
+        foreach (string part in (_statusCodes ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!int.TryParse(part, out int code))
+            {
+                _error = $"\"{part}\" isn't a status code.";
+                return;
+            }
+
+            codes.Add(code);
+        }
+
+        Request.ExpectedStatusCodes = codes;
+
+        _saving = true;
+        SaveResult result = CheckId is int id
+            ? await ProjectsService.UpdateCheck(id, Request)
+            : await ProjectsService.AddCheck(ProjectId, Request);
+        _saving = false;
+
+        if (result.Success)
+        {
+            MudDialog.Close(DialogResult.Ok(result.Id));
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+
+    private static string TypeHelp(CheckTypeEnum type)
+    {
+        return type switch
+        {
+            CheckTypeEnum.Http => "The monitor requests this URL every minute",
+            CheckTypeEnum.Heartbeat => "The project must report something regularly",
+            CheckTypeEnum.Value => "A rule on a value the project reports",
+            _ => ""
+        };
+    }
+
+    private static string NamePlaceholder(CheckTypeEnum type)
+    {
+        return type switch
+        {
+            CheckTypeEnum.Http => "API",
+            CheckTypeEnum.Heartbeat => "Bot running",
+            _ => "Discord connected"
+        };
+    }
+}

@@ -67,7 +67,10 @@ namespace ProjectMonitor.Domain.Services.Dashboard
                 WarningCount = health.Issues.Count(x => x.Level >= HealthLevel.Warning),
                 Endpoints = snapshot.Endpoints,
                 GitHub = snapshot.GitHub,
-                GitHubError = snapshot.GitHubError
+                GitHubError = snapshot.GitHubError,
+                Checks = snapshot.Checks,
+                LatestValues = snapshot.LatestValues,
+                LastReportUtc = snapshot.LastReportUtc
             };
         }
 

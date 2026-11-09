@@ -12,5 +12,9 @@ namespace ProjectMonitor.Domain.DTOs.Monitoring
         double? Uptime24h,
         double? Uptime7d,
         DateTime? DownSinceUtc,
-        IReadOnlyList<UptimeBucket> History);
+        IReadOnlyList<UptimeBucket> History)
+    {
+        /// <summary>How serious it is when this endpoint is down (set per check on the site).</summary>
+        public Enums.HealthLevel FailureLevel { get; init; } = Enums.HealthLevel.Critical;
+    }
 }

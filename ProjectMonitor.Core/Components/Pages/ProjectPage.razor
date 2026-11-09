@@ -22,17 +22,18 @@
             <MudText Typo="Typo.body2" Color="Color.Secondary">@_details.Description</MudText>
         }
     </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <MudButton Href="@($"/manage?project={_details.Slug}")" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Tune">Manage</MudButton>
     @if (_github is not null)
     {
-        <div class="d-flex gap-2 flex-wrap">
             <MudButton Href="@_github.RepositoryUrl" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Custom.Brands.GitHub">Repository</MudButton>
             <MudButton Href="@($"{_github.RepositoryUrl}/actions")" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.PlayCircleOutline">Actions</MudButton>
             @if (_github.DependencyDashboard is { } dashboard)
             {
                 <MudButton Href="@dashboard.Url" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Update">Dependency Dashboard</MudButton>
             }
-        </div>
     }
+    </div>
 </div>
 
 @if (_details.GitHubError is not null)
@@ -77,7 +78,7 @@
         {
             <div class="empty-state">
                 <MudIcon Icon="@Icons.Material.Filled.Language" />
-                <MudText Typo="Typo.body2" Color="Color.Secondary">No services are monitored for this project. Add URLs under Endpoints in appsettings.json.</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No websites or APIs are monitored for this project. <MudLink Href="@($"/manage?project={_details.Slug}")" Typo="Typo.body2">Add a Website / API check</MudLink>.</MudText>
             </div>
         }
         else
@@ -131,6 +132,83 @@
                     </tbody>
                 </MudSimpleTable>
             </MudPaper>
+        }
+    </MudTabPanel>
+
+    @* ── Checks (heartbeats and reported values) ─────────────── *@
+    <MudTabPanel Text="Checks" BadgeData="@(_failingChecks > 0 ? _failingChecks : null)" BadgeColor="Color.Error">
+        @if (_details.Checks.Count == 0 && _details.LatestValues.Count == 0)
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    This project doesn't report any values yet. <MudLink Href="@($"/manage?project={_details.Slug}")" Typo="Typo.body2">Add a heartbeat or value check</MudLink>
+                    and send values to <code>POST /api/report</code>.
+                </MudText>
+            </div>
+        }
+        else
+        {
+            @if (_details.Checks.Count > 0)
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden mb-6">
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead>
+                            <tr><th>Status</th><th>Check</th><th>Rule</th><th>Current value</th><th>Reported</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (CheckStatus check in _details.Checks)
+                            {
+                                <tr>
+                                    <td class="nowrap">
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@Format.HealthColor(check.Level)" Icon="@Format.HealthIcon(check.Level)" Class="ma-0">
+                                            @(check.Level == HealthLevel.Healthy ? "Passing" : Format.HealthText(check.Level))
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@check.Name</MudText>
+                                        @if (check.Level != HealthLevel.Healthy)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="@Format.HealthColor(check.Level)">@check.Message</MudText>
+                                        }
+                                    </td>
+                                    <td><MudText Typo="Typo.body2" Color="Color.Secondary">@check.Rule</MudText></td>
+                                    <td><code>@(check.CurrentValue ?? "–")</code></td>
+                                    <td class="nowrap">@Format.Ago(check.LastReportedUtc, NowUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">
+                Latest reported values · last report @Format.Ago(_details.LastReportUtc, NowUtc)
+            </MudText>
+            @if (_details.LatestValues.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Nothing reported yet.</MudText>
+            }
+            else
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden">
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead>
+                            <tr><th>Name</th><th>Value</th><th>Reported</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ReportedValueInfo value in _details.LatestValues)
+                            {
+                                <tr>
+                                    <td><code>@value.Key</code></td>
+                                    <td>@value.Value</td>
+                                    <td class="nowrap"><MudTooltip Text="@Format.LocalText(value.ReportedAtUtc)">@Format.Ago(value.ReportedAtUtc, NowUtc)</MudTooltip></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
         }
     </MudTabPanel>
 
@@ -268,6 +346,7 @@
 
     private ProjectDetailsDto? _details;
     private GitHubSnapshot? _github;
+    private int _failingChecks;
 
     protected override void OnParametersSet()
     {
@@ -278,5 +357,6 @@
     {
         _details = Dashboard.GetProjectDetails(Slug);
         _github = _details?.GitHub;
+        _failingChecks = _details?.Checks.Count(x => x.Level > HealthLevel.Healthy) ?? 0;
     }
 }

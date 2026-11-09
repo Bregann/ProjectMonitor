@@ -10,30 +10,30 @@ namespace ProjectMonitor.Domain.Helpers
         /// Uptime percentages and an hourly history strip per endpoint. Aggregation happens in the
         /// database (GROUP BY), so a week of minute-by-minute checks never gets loaded into memory.
         /// </summary>
-        public static async Task<Dictionary<string, UptimeStats>> GetStats(AppDbContext context, IReadOnlyCollection<string> keys, DateTime nowUtc)
+        public static async Task<Dictionary<int, UptimeStats>> GetStats(AppDbContext context, IReadOnlyCollection<int> httpCheckIds, DateTime nowUtc)
         {
             DateTime weekAgo = nowUtc.AddDays(-7);
             DateTime currentHour = new(nowUtc.Year, nowUtc.Month, nowUtc.Day, nowUtc.Hour, 0, 0, DateTimeKind.Utc);
             DateTime dayStart = currentHour.AddHours(-23);
 
             var daily = await context.UptimeChecks
-                .Where(x => keys.Contains(x.EndpointKey) && x.CheckedAtUtc >= weekAgo)
-                .GroupBy(x => x.EndpointKey)
+                .Where(x => httpCheckIds.Contains(x.HttpCheckId) && x.CheckedAtUtc >= weekAgo)
+                .GroupBy(x => x.HttpCheckId)
                 .Select(g => new { Key = g.Key, Total = g.Count(), Up = g.Count(x => x.IsUp) })
                 .ToListAsync();
 
             var hourly = await context.UptimeChecks
-                .Where(x => keys.Contains(x.EndpointKey) && x.CheckedAtUtc >= dayStart)
-                .GroupBy(x => new { x.EndpointKey, x.CheckedAtUtc.Date, x.CheckedAtUtc.Hour })
-                .Select(g => new { g.Key.EndpointKey, g.Key.Date, g.Key.Hour, Total = g.Count(), Up = g.Count(x => x.IsUp) })
+                .Where(x => httpCheckIds.Contains(x.HttpCheckId) && x.CheckedAtUtc >= dayStart)
+                .GroupBy(x => new { x.HttpCheckId, x.CheckedAtUtc.Date, x.CheckedAtUtc.Hour })
+                .Select(g => new { g.Key.HttpCheckId, g.Key.Date, g.Key.Hour, Total = g.Count(), Up = g.Count(x => x.IsUp) })
                 .ToListAsync();
 
-            Dictionary<string, UptimeStats> result = [];
+            Dictionary<int, UptimeStats> result = [];
 
-            foreach (string key in keys)
+            foreach (int key in httpCheckIds)
             {
                 var week = daily.FirstOrDefault(x => x.Key == key);
-                var hours = hourly.Where(x => x.EndpointKey == key).ToList();
+                var hours = hourly.Where(x => x.HttpCheckId == key).ToList();
 
                 List<UptimeBucket> buckets = Enumerable.Range(0, 24)
                     .Select(i => dayStart.AddHours(i))

@@ -1,19 +1,14 @@
-using Microsoft.Extensions.Options;
 using ProjectMonitor.Domain.DTOs.Configuration;
 using ProjectMonitor.Domain.DTOs.Monitoring;
 using ProjectMonitor.Domain.Interfaces.Helpers;
 
 namespace ProjectMonitor.Domain.Helpers
 {
-    public class DashboardStateHelper(IOptions<MonitorConfig> config) : IDashboardStateHelper
+    public class DashboardStateHelper : IDashboardStateHelper
     {
         private readonly Lock _lock = new();
-
-        private readonly Dictionary<string, ProjectSnapshot> _projects = config.Value.Projects.ToDictionary(
-            x => x.Slug,
-            x => new ProjectSnapshot(x, x.Endpoints.Select(e => NewEndpointStatus(x, e)).ToList(), null, null, null));
-
-        private readonly List<string> _order = config.Value.Projects.Select(x => x.Slug).ToList();
+        private Dictionary<string, ProjectSnapshot> _projects = [];
+        private List<string> _order = [];
 
         public event Action? Changed;
 
@@ -35,6 +30,49 @@ namespace ProjectMonitor.Domain.Helpers
             {
                 return _projects.GetValueOrDefault(slug);
             }
+        }
+
+        public void SyncProjects(IReadOnlyList<ProjectConfig> projects)
+        {
+            lock (_lock)
+            {
+                Dictionary<string, ProjectSnapshot> updated = [];
+
+                foreach (ProjectConfig project in projects)
+                {
+                    ProjectSnapshot? existing = _projects.GetValueOrDefault(project.Slug);
+
+                    // Keep known uptime results for endpoints that still exist; add blank ones for new endpoints
+                    List<EndpointStatus> endpoints = project.Endpoints
+                        .Select(e =>
+                        {
+                            EndpointStatus? known = existing?.Endpoints.FirstOrDefault(x => x.Key == EndpointKey(e));
+                            return known is null
+                                ? NewEndpointStatus(e)
+                                : known with { Name = e.Name, Url = e.Url, FailureLevel = e.FailureLevel };
+                        })
+                        .ToList();
+
+                    // A repo change makes the old GitHub data meaningless
+                    bool sameRepo = existing?.Project.Repository == project.Repository;
+
+                    updated[project.Slug] = existing is null
+                        ? new ProjectSnapshot(project, endpoints, null, null, null)
+                        : existing with
+                        {
+                            Project = project,
+                            Endpoints = endpoints,
+                            GitHub = sameRepo ? existing.GitHub : null,
+                            GitHubUpdatedUtc = sameRepo ? existing.GitHubUpdatedUtc : null,
+                            GitHubError = sameRepo ? existing.GitHubError : null
+                        };
+                }
+
+                _projects = updated;
+                _order = projects.Select(x => x.Slug).ToList();
+            }
+
+            Changed?.Invoke();
         }
 
         public void UpdateGitHub(string slug, GitHubSnapshot? snapshot, string? error)
@@ -76,14 +114,27 @@ namespace ProjectMonitor.Domain.Helpers
             Changed?.Invoke();
         }
 
-        public static string EndpointKey(ProjectConfig project, EndpointConfig endpoint)
+        public void UpdateChecks(string slug, IReadOnlyList<CheckStatus> checks, IReadOnlyList<ReportedValueInfo> latestValues, DateTime? lastReportUtc)
         {
-            return $"{project.Slug}/{endpoint.Name}";
+            lock (_lock)
+            {
+                if (_projects.TryGetValue(slug, out ProjectSnapshot? current))
+                {
+                    _projects[slug] = current with { Checks = checks, LatestValues = latestValues, LastReportUtc = lastReportUtc };
+                }
+            }
+
+            Changed?.Invoke();
         }
 
-        private static EndpointStatus NewEndpointStatus(ProjectConfig project, EndpointConfig endpoint)
+        public static string EndpointKey(EndpointConfig endpoint)
         {
-            return new EndpointStatus(EndpointKey(project, endpoint), endpoint.Name, endpoint.Url, null, null, null, null, null, null, null, null, []);
+            return endpoint.Id.ToString();
+        }
+
+        private static EndpointStatus NewEndpointStatus(EndpointConfig endpoint)
+        {
+            return new EndpointStatus(EndpointKey(endpoint), endpoint.Name, endpoint.Url, null, null, null, null, null, null, null, null, []) { FailureLevel = endpoint.FailureLevel };
         }
     }
 }

@@ -1,0 +1,53 @@
+@inject IProjectsService ProjectsService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Class="dialog-form">
+            <MudTextField @bind-Value="Request.Name" Label="Name" Variant="Variant.Outlined" Required="true" AutoFocus="true" MaxLength="100" />
+            <MudTextField @bind-Value="Request.Description" Label="Description" Variant="Variant.Outlined" MaxLength="300" HelperText="Optional, shown under the name" />
+            <MudTextField @bind-Value="Request.Repository" Label="GitHub repository" Variant="Variant.Outlined" MaxLength="100"
+                          HelperText="Optional. Just the name, e.g. Orbit, for Actions, PRs and security alerts" />
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">@(ProjectId is null ? "Add project" : "Save")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Null when adding a new project.</summary>
+    [Parameter]
+    public int? ProjectId { get; set; }
+
+    [Parameter]
+    public SaveProjectRequest Request { get; set; } = new();
+
+    private string? _error;
+    private bool _saving;
+
+    private async Task Save()
+    {
+        _saving = true;
+        SaveResult result = ProjectId is int id
+            ? await ProjectsService.UpdateProject(id, Request)
+            : await ProjectsService.AddProject(Request);
+        _saving = false;
+
+        if (result.Success)
+        {
+            MudDialog.Close(DialogResult.Ok(result.Id));
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+}

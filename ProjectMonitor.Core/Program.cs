@@ -9,13 +9,20 @@ using ProjectMonitor.Core;
 using ProjectMonitor.Core.Components;
 using ProjectMonitor.Domain.Database.Context;
 using ProjectMonitor.Domain.DTOs.Configuration;
+using ProjectMonitor.Domain.DTOs.Reports;
 using ProjectMonitor.Domain.Helpers;
+using ProjectMonitor.Domain.Helpers.Checks;
 using ProjectMonitor.Domain.Interfaces.Api.Dashboard;
+using ProjectMonitor.Domain.Interfaces.Api.Projects;
+using ProjectMonitor.Domain.Interfaces.Api.Reports;
 using ProjectMonitor.Domain.Interfaces.Helpers;
 using ProjectMonitor.Domain.Interfaces.Jobs;
 using ProjectMonitor.Domain.Services.Alerts;
+using ProjectMonitor.Domain.Services.Checks;
 using ProjectMonitor.Domain.Services.Dashboard;
 using ProjectMonitor.Domain.Services.GitHub;
+using ProjectMonitor.Domain.Services.Projects;
+using ProjectMonitor.Domain.Services.Reports;
 using ProjectMonitor.Domain.Services.Uptime;
 using Serilog;
 using Serilog.Events;
@@ -58,9 +65,18 @@ builder.Services.AddHttpClient<IGitHubApiHelper, GitHubApiHelper>(GitHubApiHelpe
 builder.Services.AddHttpClient<IUptimeProbeHelper, UptimeProbeHelper>(c => c.Timeout = TimeSpan.FromSeconds(monitorConfig.UptimeTimeoutSeconds));
 builder.Services.AddHttpClient<ICommsSenderClient, CommsSenderClient>(c => c.Timeout = TimeSpan.FromSeconds(15));
 
+builder.Services.AddScoped<IProjectConfigHelper, ProjectConfigHelper>();
+
+// One evaluator per check type: add new check types here
+builder.Services.AddSingleton<ICheckEvaluator, HeartbeatCheckEvaluator>();
+builder.Services.AddSingleton<ICheckEvaluator, ValueCheckEvaluator>();
+
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IProjectsService, ProjectsService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IUptimeService, UptimeService>();
 builder.Services.AddScoped<IGitHubService, GitHubService>();
+builder.Services.AddScoped<IChecksService, ChecksService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 
 // Auth: one password, kept signed in for 30 days
@@ -141,6 +157,11 @@ using (var scope = app.Services.CreateScope())
         await DatabaseSeedHelper.SeedDatabase(dbContext);
     }
 #endif
+
+    await DatabaseSeedHelper.SeedDefaultProjects(dbContext);
+
+    // Show the projects straight away, before the first jobs have run
+    await scope.ServiceProvider.GetRequiredService<IProjectConfigHelper>().SyncDashboardState();
 }
 
 var environmentalSettingHelper = app.Services.GetRequiredService<IEnvironmentalSettingHelper>();
@@ -153,7 +174,10 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+// Friendly error pages for the site only: API callers need the real status codes (401, 400…)
+app.UseWhen(
+    context => !context.Request.Path.StartsWithSegments("/api"),
+    branch => branch.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -161,6 +185,19 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
+
+// Projects send values here with their API key (see the README): { "values": { "discordConnected": true } }
+app.MapPost("/api/report", async (HttpRequest request, ReportRequest body, IReportService reportService) =>
+{
+    ReportResultEnum result = await reportService.RecordReport(request.Headers["X-ProjectMonitor-ApiKey"].FirstOrDefault(), body);
+
+    return result switch
+    {
+        ReportResultEnum.Recorded => Results.Ok(new { recorded = body.Values.Count }),
+        ReportResultEnum.InvalidApiKey => Results.Unauthorized(),
+        _ => Results.BadRequest(new { message = $"Send up to {ReportService.MaxValuesPerReport} values as strings, numbers or true/false (max {ReportService.MaxValueLength} characters each)." })
+    };
+}).AllowAnonymous().DisableAntiforgery();
 app.MapGet("/logout", async (HttpContext context) =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

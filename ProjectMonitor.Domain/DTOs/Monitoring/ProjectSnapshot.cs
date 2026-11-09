@@ -8,5 +8,14 @@ namespace ProjectMonitor.Domain.DTOs.Monitoring
         IReadOnlyList<EndpointStatus> Endpoints,
         GitHubSnapshot? GitHub,
         DateTime? GitHubUpdatedUtc,
-        string? GitHubError);
+        string? GitHubError)
+    {
+        /// <summary>Results of heartbeat and reported-value checks (and any future check types).</summary>
+        public IReadOnlyList<CheckStatus> Checks { get; init; } = [];
+
+        /// <summary>The latest value of every key the project has reported.</summary>
+        public IReadOnlyList<ReportedValueInfo> LatestValues { get; init; } = [];
+
+        public DateTime? LastReportUtc { get; init; }
+    }
 }

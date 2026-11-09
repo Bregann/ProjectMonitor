@@ -12,5 +12,8 @@ namespace ProjectMonitor.Domain.DTOs.Dashboard
         public required IReadOnlyList<EndpointStatus> Endpoints { get; set; }
         public GitHubSnapshot? GitHub { get; set; }
         public string? GitHubError { get; set; }
+        public IReadOnlyList<CheckStatus> Checks { get; set; } = [];
+        public IReadOnlyList<ReportedValueInfo> LatestValues { get; set; } = [];
+        public DateTime? LastReportUtc { get; set; }
     }
 }

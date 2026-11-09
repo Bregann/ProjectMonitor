@@ -8,9 +8,11 @@ namespace ProjectMonitor.Domain.Database.Models
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; set; }
 
-        /// <summary>"{projectSlug}/{endpointName}", so history survives URL changes.</summary>
-        [Required, MaxLength(200)]
-        public required string EndpointKey { get; set; }
+        /// <summary>The HTTP check this result belongs to, so history survives renames and URL changes.</summary>
+        [Required]
+        public int HttpCheckId { get; set; }
+
+        public virtual HttpCheck HttpCheck { get; set; } = null!;
 
         [Required]
         public DateTime CheckedAtUtc { get; set; }

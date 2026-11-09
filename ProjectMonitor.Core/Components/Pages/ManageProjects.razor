@@ -1,0 +1,290 @@
+@page "/manage"
+@inject IProjectsService ProjectsService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<PageTitle>Manage projects · Project Monitor</PageTitle>
+
+<div class="d-flex align-start justify-space-between flex-wrap gap-3 mb-6">
+    <div>
+        <MudText Typo="Typo.h4" Class="page-title">Manage projects</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Add projects and the checks the monitor runs for each one. Changes apply straight away.</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddProject">Add project</MudButton>
+</div>
+
+@if (_projects is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_projects.Count == 0)
+{
+    <MudAlert Severity="Severity.Info">No projects yet. Add one to start monitoring it.</MudAlert>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="true" Outlined="true" Elevation="0">
+        @foreach (ManageProjectDto project in _projects)
+        {
+            <MudExpansionPanel @key="project.Id" Expanded="@(project.Slug == ExpandSlug)">
+                <TitleContent>
+                    <div class="d-flex align-center gap-3 flex-wrap">
+                        <MudText Typo="Typo.subtitle1" Class="font-weight-medium">@project.Name</MudText>
+                        @if (project.Repository is not null)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@Icons.Custom.Brands.GitHub" Class="ma-0">@project.Repository</MudChip>
+                        }
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@project.Checks.Count @(project.Checks.Count == 1 ? "check" : "checks")</MudText>
+                    </div>
+                </TitleContent>
+                <ChildContent>
+                    @* ── Project details ── *@
+                    <div class="d-flex align-start justify-space-between flex-wrap gap-2 mb-4">
+                        <div>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">@(project.Description ?? "No description")</MudText>
+                            <MudLink Href="@($"/projects/{project.Slug}")" Typo="Typo.caption">View dashboard</MudLink>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="() => EditProject(project)">Edit</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" OnClick="() => DeleteProject(project)">Delete</MudButton>
+                        </div>
+                    </div>
+
+                    @* ── Checks ── *@
+                    <div class="d-flex align-center justify-space-between mb-2">
+                        <MudText Typo="Typo.subtitle2">Checks</MudText>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="() => AddCheck(project)">Add check</MudButton>
+                    </div>
+                    @if (project.Checks.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">No checks yet. Add a website/API to ping, a heartbeat, or a rule on a value the project reports.</MudText>
+                    }
+                    else
+                    {
+                        <MudPaper Outlined="true" Class="overflow-hidden mb-4">
+                            <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                                <thead>
+                                    <tr><th>Type</th><th>Name</th><th>Rule</th><th>When it fails</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (CheckDto check in project.Checks)
+                                    {
+                                        <tr class="@(check.IsEnabled ? "" : "disabled-row")">
+                                            <td class="nowrap"><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Icon="@TypeIcon(check.Type)" Class="ma-0">@TypeName(check.Type)</MudChip></td>
+                                            <td>@check.Name@(check.IsEnabled ? "" : " (disabled)")</td>
+                                            <td><MudText Typo="Typo.body2" Color="Color.Secondary">@check.Summary</MudText></td>
+                                            <td><MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@(check.FailureLevel == HealthLevel.Critical ? Color.Error : Color.Warning)" Class="ma-0">@check.FailureLevel</MudChip></td>
+                                            <td class="nowrap text-right">
+                                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" aria-label="Edit check" OnClick="() => EditCheck(project, check)" />
+                                                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" aria-label="Delete check" OnClick="() => DeleteCheck(check)" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        </MudPaper>
+                    }
+
+                    @* ── Reporting ── *@
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Reporting values</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">
+                        Heartbeat and value checks use what the project sends to <code>POST @(BaseUrl)api/report</code> with this key in the <code>X-ProjectMonitor-ApiKey</code> header.
+                    </MudText>
+                    <div class="d-flex align-center gap-2 flex-wrap">
+                        <code class="api-key">@(_revealed.Contains(project.Id) ? project.ApiKey : new string('•', 24))</code>
+                        <MudIconButton Size="Size.Small" Icon="@(_revealed.Contains(project.Id) ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)" aria-label="Show key" OnClick="() => ToggleReveal(project.Id)" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ContentCopy" aria-label="Copy key" OnClick="@(() => Copy(project.ApiKey, "API key copied"))" />
+                        <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.ContentPasteGo" aria-label="Copy example" OnClick="@(() => Copy(Example(project), "Example request copied"))" />
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Autorenew" OnClick="() => RegenerateKey(project)">New key</MudButton>
+                    </div>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+@code {
+    /// <summary>Opens this project's panel, e.g. /manage?project=orbit from a project's page.</summary>
+    [SupplyParameterFromQuery(Name = "project")]
+    private string? ExpandSlug { get; set; }
+
+    private List<ManageProjectDto>? _projects;
+    private readonly HashSet<int> _revealed = [];
+
+    private string BaseUrl => Navigation.BaseUri;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        _projects = await ProjectsService.GetProjects();
+    }
+
+    private async Task AddProject()
+    {
+        IDialogReference dialog = await DialogService.ShowAsync<ProjectDialog>("Add project", DialogOptions);
+        DialogResult? result = await dialog.Result;
+
+        if (result is { Canceled: false })
+        {
+            await Load();
+            Snackbar.Add("Project added. Now add some checks for it.", Severity.Success);
+        }
+    }
+
+    private async Task EditProject(ManageProjectDto project)
+    {
+        DialogParameters<ProjectDialog> parameters = new()
+        {
+            { x => x.ProjectId, project.Id },
+            { x => x.Request, new SaveProjectRequest { Name = project.Name, Description = project.Description, Repository = project.Repository } }
+        };
+
+        IDialogReference dialog = await DialogService.ShowAsync<ProjectDialog>($"Edit {project.Name}", parameters, DialogOptions);
+
+        if (await dialog.Result is { Canceled: false })
+        {
+            await Load();
+            Snackbar.Add("Project saved", Severity.Success);
+        }
+    }
+
+    private async Task DeleteProject(ManageProjectDto project)
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            $"Delete {project.Name}?",
+            "This removes the project, its checks, and all its uptime and reported-value history. It can't be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            await ProjectsService.DeleteProject(project.Id);
+            await Load();
+            Snackbar.Add($"{project.Name} deleted", Severity.Info);
+        }
+    }
+
+    private async Task AddCheck(ManageProjectDto project)
+    {
+        DialogParameters<CheckDialog> parameters = new()
+        {
+            { x => x.ProjectId, project.Id },
+            { x => x.Request, new SaveCheckRequest() }
+        };
+
+        IDialogReference dialog = await DialogService.ShowAsync<CheckDialog>($"Add check to {project.Name}", parameters, DialogOptions);
+
+        if (await dialog.Result is { Canceled: false })
+        {
+            await Load();
+            Snackbar.Add("Check added", Severity.Success);
+        }
+    }
+
+    private async Task EditCheck(ManageProjectDto project, CheckDto check)
+    {
+        DialogParameters<CheckDialog> parameters = new()
+        {
+            { x => x.ProjectId, project.Id },
+            { x => x.CheckId, check.Id },
+            {
+                x => x.Request, new SaveCheckRequest
+                {
+                    Type = check.Type,
+                    Name = check.Name,
+                    FailureLevel = check.FailureLevel,
+                    IsEnabled = check.IsEnabled,
+                    Url = check.Url,
+                    ExpectedStatusCodes = [.. check.ExpectedStatusCodes],
+                    MaxAgeMinutes = check.MaxAgeMinutes,
+                    ValueKey = check.ValueKey,
+                    Condition = check.Condition ?? ValueConditionEnum.IsTrue,
+                    ExpectedValue = check.ExpectedValue
+                }
+            }
+        };
+
+        IDialogReference dialog = await DialogService.ShowAsync<CheckDialog>($"Edit {check.Name}", parameters, DialogOptions);
+
+        if (await dialog.Result is { Canceled: false })
+        {
+            await Load();
+            Snackbar.Add("Check saved", Severity.Success);
+        }
+    }
+
+    private async Task DeleteCheck(CheckDto check)
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync($"Delete {check.Name}?", "Its history is deleted too.", yesText: "Delete", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            await ProjectsService.DeleteCheck(check.Id);
+            await Load();
+        }
+    }
+
+    private async Task RegenerateKey(ManageProjectDto project)
+    {
+        bool? confirmed = await DialogService.ShowMessageBoxAsync(
+            "Create a new API key?",
+            $"{project.Name} will stop being able to report until it's updated with the new key.",
+            yesText: "Create new key", cancelText: "Cancel");
+
+        if (confirmed == true)
+        {
+            await ProjectsService.RegenerateApiKey(project.Id);
+            await Load();
+            _revealed.Add(project.Id);
+            Snackbar.Add("New key created. Update the project to use it.", Severity.Warning);
+        }
+    }
+
+    private void ToggleReveal(int projectId)
+    {
+        if (!_revealed.Remove(projectId))
+        {
+            _revealed.Add(projectId);
+        }
+    }
+
+    private async Task Copy(string text, string message)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+        Snackbar.Add(message, Severity.Normal);
+    }
+
+    private string Example(ManageProjectDto project)
+    {
+        const string body = "{\"values\": {\"discordConnected\": true, \"queueLength\": 3}}";
+        return $"curl -X POST {BaseUrl}api/report -H \"Content-Type: application/json\" -H \"X-ProjectMonitor-ApiKey: {project.ApiKey}\" -d '{body}'";
+    }
+
+    private static readonly DialogOptions DialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true };
+
+    private static string TypeName(CheckTypeEnum type)
+    {
+        return type switch
+        {
+            CheckTypeEnum.Http => "Website / API",
+            CheckTypeEnum.Heartbeat => "Heartbeat",
+            CheckTypeEnum.Value => "Value",
+            _ => type.ToString()
+        };
+    }
+
+    private static string TypeIcon(CheckTypeEnum type)
+    {
+        return type switch
+        {
+            CheckTypeEnum.Http => Icons.Material.Filled.Language,
+            CheckTypeEnum.Heartbeat => Icons.Material.Filled.MonitorHeart,
+            _ => Icons.Material.Filled.Rule
+        };
+    }
+}

@@ -20,6 +20,8 @@ namespace ProjectMonitor.Tests.Services
             public void MarkGitHubPollComplete() => Changed?.Invoke();
             public void UpdateEndpoints(string slug, IReadOnlyList<EndpointStatus> endpoints) { }
             public void MarkUptimeCheckComplete() => Changed?.Invoke();
+            public void SyncProjects(IReadOnlyList<ProjectConfig> projects) { }
+            public void UpdateChecks(string slug, IReadOnlyList<CheckStatus> checks, IReadOnlyList<ReportedValueInfo> latestValues, DateTime? lastReportUtc) { }
         }
 
         private static ProjectSnapshot Project(string slug, IReadOnlyList<EndpointStatus>? endpoints = null, GitHubSnapshot? github = null)
@@ -72,6 +74,21 @@ namespace ProjectMonitor.Tests.Services
 
             Assert.That(result.NeedsAttention.Select(x => x.Issue.Level), Is.All.GreaterThanOrEqualTo(HealthLevel.Warning));
             Assert.That(result.NeedsAttention, Has.Count.EqualTo(2), "critical and high, not low");
+        }
+
+        [Test]
+        public void GetAtAGlance_FailingCheckShowsInNeedsAttention()
+        {
+            ProjectSnapshot bot = Project("bot") with
+            {
+                Checks = [new CheckStatus(7, "Discord connected", CheckTypeEnum.Value, HealthLevel.Critical, "discordConnected is true", "discordConnected is false", "false", TestData.Now)]
+            };
+            DashboardService service = new(new FakeState(bot));
+
+            AtAGlanceDto result = service.GetAtAGlance();
+
+            Assert.That(result.NeedsAttention.Single().Issue.Message, Is.EqualTo("Discord connected: discordConnected is false"));
+            Assert.That(result.Projects.Single().Health.Level, Is.EqualTo(HealthLevel.Critical));
         }
 
         [Test]

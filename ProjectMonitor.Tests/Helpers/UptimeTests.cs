@@ -53,20 +53,20 @@ namespace ProjectMonitor.Tests.Helpers
 
             // Last hour: 3 up, 1 down. Two days ago: 4 up (counts towards 7d only).
             db.UptimeChecks.AddRange(
-                Check("orbit/API", now.AddMinutes(-1), true),
-                Check("orbit/API", now.AddMinutes(-2), true),
-                Check("orbit/API", now.AddMinutes(-3), true),
-                Check("orbit/API", now.AddMinutes(-4), false),
-                Check("orbit/API", now.AddDays(-2), true),
-                Check("orbit/API", now.AddDays(-2).AddMinutes(1), true),
-                Check("orbit/API", now.AddDays(-2).AddMinutes(2), true),
-                Check("orbit/API", now.AddDays(-2).AddMinutes(3), true),
-                Check("orbit/API", now.AddDays(-10), false),
-                Check("other/Web", now.AddMinutes(-1), false));
+                Check(1, now.AddMinutes(-1), true),
+                Check(1, now.AddMinutes(-2), true),
+                Check(1, now.AddMinutes(-3), true),
+                Check(1, now.AddMinutes(-4), false),
+                Check(1, now.AddDays(-2), true),
+                Check(1, now.AddDays(-2).AddMinutes(1), true),
+                Check(1, now.AddDays(-2).AddMinutes(2), true),
+                Check(1, now.AddDays(-2).AddMinutes(3), true),
+                Check(1, now.AddDays(-10), false),
+                Check(2, now.AddMinutes(-1), false));
             await db.SaveChangesAsync();
 
-            Dictionary<string, UptimeStats> stats = await UptimeStatsHelper.GetStats(db, ["orbit/API"], now);
-            UptimeStats api = stats["orbit/API"];
+            Dictionary<int, UptimeStats> stats = await UptimeStatsHelper.GetStats(db, [1], now);
+            UptimeStats api = stats[1];
 
             Assert.That(api.Uptime24h, Is.EqualTo(75.0));
             Assert.That(api.Uptime7d, Is.EqualTo(87.5));
@@ -77,9 +77,9 @@ namespace ProjectMonitor.Tests.Helpers
             Assert.That(api.Last24Hours[0].UptimePercent, Is.Null, "no checks in that hour");
         }
 
-        private static UptimeCheck Check(string key, DateTime at, bool up)
+        private static UptimeCheck Check(int httpCheckId, DateTime at, bool up)
         {
-            return new UptimeCheck { EndpointKey = key, CheckedAtUtc = at, IsUp = up, StatusCode = up ? 200 : 503 };
+            return new UptimeCheck { HttpCheckId = httpCheckId, CheckedAtUtc = at, IsUp = up, StatusCode = up ? 200 : 503 };
         }
     }
 }

@@ -1,4 +1,3 @@
-using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ProjectMonitor.Domain.Database.Context;
@@ -14,19 +13,19 @@ namespace ProjectMonitor.Domain.Services.Uptime
 {
     public class UptimeService(
         AppDbContext context,
+        IProjectConfigHelper projectConfigHelper,
         IUptimeProbeHelper probe,
         IDashboardStateHelper state,
         FailureStreakTracker streaks,
         IOptions<MonitorConfig> config) : IUptimeService
     {
-        [DisableConcurrentExecution(60)]
-        [AutomaticRetry(Attempts = 0)]
         public async Task CheckEndpoints()
         {
             DateTime nowUtc = DateTime.UtcNow;
+            List<ProjectConfig> projects = await projectConfigHelper.SyncDashboardState();
 
-            var targets = config.Value.Projects
-                .SelectMany(p => p.Endpoints.Select(e => new { Project = p, Endpoint = e, Key = DashboardStateHelper.EndpointKey(p, e) }))
+            var targets = projects
+                .SelectMany(p => p.Endpoints.Select(e => new { Project = p, Endpoint = e }))
                 .ToList();
 
             if (targets.Count == 0)
@@ -39,7 +38,7 @@ namespace ProjectMonitor.Domain.Services.Uptime
 
             context.UptimeChecks.AddRange(targets.Select((t, i) => new UptimeCheck
             {
-                EndpointKey = t.Key,
+                HttpCheckId = t.Endpoint.Id,
                 CheckedAtUtc = nowUtc,
                 IsUp = results[i].IsUp,
                 StatusCode = results[i].StatusCode,
@@ -48,7 +47,7 @@ namespace ProjectMonitor.Domain.Services.Uptime
             }));
             await context.SaveChangesAsync();
 
-            Dictionary<string, UptimeStats> stats = await UptimeStatsHelper.GetStats(context, targets.Select(t => t.Key).ToList(), nowUtc);
+            Dictionary<int, UptimeStats> stats = await UptimeStatsHelper.GetStats(context, targets.Select(t => t.Endpoint.Id).ToList(), nowUtc);
 
             foreach (var project in targets.Select((t, i) => (Target: t, Result: results[i])).GroupBy(x => x.Target.Project.Slug))
             {
@@ -56,21 +55,22 @@ namespace ProjectMonitor.Domain.Services.Uptime
 
                 List<EndpointStatus> endpoints = project.Select(x =>
                 {
-                    (bool isDown, DateTime? downSince) = streaks.Record(x.Target.Key, x.Result.IsUp, nowUtc);
-                    UptimeStats endpointStats = stats[x.Target.Key];
-                    bool? wasUp = previous.FirstOrDefault(e => e.Key == x.Target.Key)?.IsUp;
+                    string key = DashboardStateHelper.EndpointKey(x.Target.Endpoint);
+                    (bool isDown, DateTime? downSince) = streaks.Record(key, x.Result.IsUp, nowUtc);
+                    UptimeStats endpointStats = stats[x.Target.Endpoint.Id];
+                    bool? wasUp = previous.FirstOrDefault(e => e.Key == key)?.IsUp;
 
                     if (isDown && wasUp != false)
                     {
-                        Log.Warning("[Uptime] {Endpoint} is down: {Error}", x.Target.Key, x.Result.Error);
+                        Log.Warning("[Uptime] {Project} {Endpoint} is down: {Error}", x.Target.Project.Name, x.Target.Endpoint.Name, x.Result.Error);
                     }
                     else if (!isDown && wasUp == false)
                     {
-                        Log.Information("[Uptime] {Endpoint} is back up", x.Target.Key);
+                        Log.Information("[Uptime] {Project} {Endpoint} is back up", x.Target.Project.Name, x.Target.Endpoint.Name);
                     }
 
                     return new EndpointStatus(
-                        Key: x.Target.Key,
+                        Key: key,
                         Name: x.Target.Endpoint.Name,
                         Url: x.Target.Endpoint.Url,
                         IsUp: !isDown,
@@ -81,7 +81,10 @@ namespace ProjectMonitor.Domain.Services.Uptime
                         Uptime24h: endpointStats.Uptime24h,
                         Uptime7d: endpointStats.Uptime7d,
                         DownSinceUtc: downSince,
-                        History: endpointStats.Last24Hours);
+                        History: endpointStats.Last24Hours)
+                    {
+                        FailureLevel = x.Target.Endpoint.FailureLevel
+                    };
                 }).ToList();
 
                 state.UpdateEndpoints(project.Key, endpoints);
@@ -90,7 +93,6 @@ namespace ProjectMonitor.Domain.Services.Uptime
             state.MarkUptimeCheckComplete();
         }
 
-        [AutomaticRetry(Attempts = 0)]
         public async Task PruneOldChecks()
         {
             DateTime cutoff = DateTime.UtcNow.AddDays(-Math.Max(1, config.Value.UptimeRetentionDays));

@@ -1,4 +1,3 @@
-using Hangfire;
 using ProjectMonitor.Domain.DTOs.Monitoring;
 using ProjectMonitor.Domain.Enums;
 using ProjectMonitor.Domain.Helpers;
@@ -13,8 +12,6 @@ namespace ProjectMonitor.Domain.Services.Alerts
     /// </summary>
     public class AlertService(IDashboardStateHelper state, AlertTracker tracker, ICommsSenderClient commsSender) : IAlertService
     {
-        [DisableConcurrentExecution(60)]
-        [AutomaticRetry(Attempts = 0)]
         public async Task CheckAndSendAlerts()
         {
             // Wait until both data sources have reported once, otherwise "no data yet" looks like "everything recovered"

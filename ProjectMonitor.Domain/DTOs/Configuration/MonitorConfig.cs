@@ -1,8 +1,8 @@
 namespace ProjectMonitor.Domain.DTOs.Configuration
 {
     /// <summary>
-    /// Bound from the "Monitor" section of appsettings.json: which projects to watch and how.
-    /// Secrets (tokens, passwords) live in the EnvironmentalSettings table instead.
+    /// Bound from the "Monitor" section of appsettings.json: general settings only.
+    /// Projects and their checks are managed on the site (database); secrets are in EnvironmentalSettings.
     /// </summary>
     public class MonitorConfig
     {
@@ -18,6 +18,7 @@ namespace ProjectMonitor.Domain.DTOs.Configuration
         /// <summary>A service only counts as down after this many failed checks in a row, to ignore one-off blips.</summary>
         public int FailuresBeforeDown { get; set; } = 2;
 
-        public List<ProjectConfig> Projects { get; set; } = [];
+        /// <summary>How long reported values are kept.</summary>
+        public int ReportedValueRetentionDays { get; set; } = 30;
     }
 }

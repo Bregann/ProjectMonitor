@@ -1,5 +1,3 @@
-using Hangfire;
-using Microsoft.Extensions.Options;
 using ProjectMonitor.Domain.DTOs.Configuration;
 using ProjectMonitor.Domain.DTOs.GitHub;
 using ProjectMonitor.Domain.DTOs.Monitoring;
@@ -10,13 +8,13 @@ using Serilog;
 
 namespace ProjectMonitor.Domain.Services.GitHub
 {
-    public class GitHubService(IGitHubApiHelper gitHubApi, IDashboardStateHelper state, IOptions<MonitorConfig> config) : IGitHubService
+    public class GitHubService(IGitHubApiHelper gitHubApi, IProjectConfigHelper projectConfigHelper, IDashboardStateHelper state) : IGitHubService
     {
-        [DisableConcurrentExecution(120)]
-        [AutomaticRetry(Attempts = 0)]
         public async Task PollRepositories()
         {
-            IEnumerable<Task> polls = config.Value.Projects
+            List<ProjectConfig> projects = await projectConfigHelper.SyncDashboardState();
+
+            IEnumerable<Task> polls = projects
                 .Where(x => !string.IsNullOrWhiteSpace(x.Repository))
                 .Select(PollProject);
 
