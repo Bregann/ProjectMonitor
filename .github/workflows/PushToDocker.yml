@@ -1,0 +1,19 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-publish:
+    runs-on: [self-hosted, unraid]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Build Docker image
+        run: docker build -f ProjectMonitor.Core/Dockerfile -t 192.168.1.100:5000/projectmonitor:latest .
+
+      - name: Push Docker image
+        run: docker push 192.168.1.100:5000/projectmonitor:latest

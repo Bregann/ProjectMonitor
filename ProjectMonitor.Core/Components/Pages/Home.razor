@@ -1,0 +1,230 @@
+﻿@page "/"
+@inherits DashboardComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>At a glance · Project Monitor</PageTitle>
+
+<div class="mb-6">
+    <MudText Typo="Typo.h4" Class="page-title">At a glance</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary">@_data.SummaryLine</MudText>
+</div>
+
+@* ── Summary tiles ─────────────────────────────────────────── *@
+<MudGrid Spacing="3" Class="mb-6">
+    <MudItem xs="12" sm="6" lg="3">
+        <MudPaper Class="tile" Outlined="true">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Projects</MudText>
+            <div class="tile-value">
+                <span class="@(_tiles.CriticalProjects > 0 ? "text-error" : _tiles.WarningProjects > 0 ? "text-warning" : "text-success")">@_tiles.HealthyProjects</span><span class="tile-of">/ @_tiles.TotalProjects healthy</span>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @(_tiles.CriticalProjects + _tiles.WarningProjects == 0 ? "Nothing needs attention" : $"{_tiles.CriticalProjects} critical · {_tiles.WarningProjects} warning")
+            </MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="3">
+        <MudPaper Class="tile" Outlined="true">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Services up</MudText>
+            <div class="tile-value">
+                <span class="@(_tiles.ServicesDown > 0 ? "text-error" : "text-success")">@_tiles.ServicesUp</span><span class="tile-of">/ @_tiles.ServicesTotal</span>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @(_tiles.ServicesTotal == 0 ? "No services configured" : _tiles.ServicesDown > 0 ? $"{_tiles.ServicesDown} down" : $"{Format.Percent(_tiles.AverageUptime24h)} average over 24h")
+            </MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="3">
+        <MudPaper Class="tile" Outlined="true">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">Vulnerabilities</MudText>
+            <div class="tile-value">
+                <span class="@(_tiles.CriticalVulnerabilities > 0 ? "text-error" : _tiles.HighVulnerabilities > 0 ? "text-warning" : "text-success")">@(_tiles.CriticalVulnerabilities + _tiles.HighVulnerabilities)</span><span class="tile-of">critical / high</span>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @(_tiles.ReposWithoutAlertAccess > 0 ? $"Can't read alerts for {_tiles.ReposWithoutAlertAccess} {(_tiles.ReposWithoutAlertAccess == 1 ? "repo" : "repos")}" : $"{_tiles.OtherVulnerabilities} medium / low")
+            </MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="3">
+        <MudPaper Class="tile" Outlined="true">
+            <MudText Typo="Typo.overline" Color="Color.Secondary">GitHub Actions</MudText>
+            <div class="tile-value">
+                <span class="@(_tiles.FailingWorkflows > 0 ? "text-warning" : "")">@_tiles.RunningWorkflows</span><span class="tile-of">running</span>
+            </div>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                @(_tiles.FailingWorkflows > 0 ? $"{_tiles.FailingWorkflows} failing on main" : "All passing on main") · @_tiles.UpdatePullRequests update @(_tiles.UpdatePullRequests == 1 ? "PR" : "PRs")
+            </MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* ── Projects table ────────────────────────────────────────── *@
+<MudPaper Outlined="true" Class="mb-6 overflow-hidden">
+    <MudText Typo="Typo.h6" Class="px-4 pt-4 pb-2">Projects</MudText>
+    <MudSimpleTable Dense="true" Hover="true" Class="projects-table" Elevation="0">
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Status</th>
+                <th>Services</th>
+                <th>Main branch</th>
+                <th>Last deploy</th>
+                <th>Security</th>
+                <th>Open PRs</th>
+                <th>Top issue</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (ProjectRowDto row in _data.Projects)
+            {
+                <tr class="clickable" @onclick="@(() => Navigation.NavigateTo($"/projects/{row.Slug}"))">
+                    <td>
+                        <MudText Typo="Typo.body1" Class="font-weight-medium">@row.Name</MudText>
+                        @if (row.Description is not null)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@row.Description</MudText>
+                        }
+                    </td>
+                    <td><HealthChip Level="row.Health.Level" HasData="row.Health.HasData" /></td>
+                    <td>
+                        @if (row.Endpoints.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">–</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex align-center gap-2">
+                                @foreach (EndpointStatus endpoint in row.Endpoints)
+                                {
+                                    <MudTooltip Text="@($"{endpoint.Name}: {(endpoint.IsUp is null ? "not checked yet" : endpoint.IsUp == true ? $"up · {endpoint.ResponseTimeMs} ms" : "down")}")">
+                                        <span class="status-dot @(endpoint.IsUp is null ? "pending" : endpoint.IsUp == true ? "healthy" : "critical")"></span>
+                                    </MudTooltip>
+                                }
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">@Format.Percent(row.AverageUptime24h)</MudText>
+                            </div>
+                        }
+                    </td>
+                    <td>
+                        @if (row.LatestRuns.Count > 0)
+                        {
+                            <div class="d-flex gap-1" @onclick:stopPropagation="true">
+                                @foreach (WorkflowRunInfo run in row.LatestRuns)
+                                {
+                                    <RunStatusIcon Run="run" />
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">–</MudText>
+                        }
+                    </td>
+                    <td>
+                        @if (row.LastDeploy is { } deploy)
+                        {
+                            <div class="d-flex align-center gap-1" @onclick:stopPropagation="true">
+                                <RunStatusIcon Run="deploy" />
+                                <MudText Typo="Typo.body2" Class="nowrap">@Format.Ago(deploy.UpdatedUtc, NowUtc)</MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">–</MudText>
+                        }
+                    </td>
+                    <td>
+                        @if (row.HasGitHubData)
+                        {
+                            <SeverityCounts Alerts="row.SecurityAlerts" Error="row.SecurityAlertsError" />
+                        }
+                    </td>
+                    <td><MudText Typo="Typo.body2">@(row.OpenPullRequests?.ToString() ?? "–")</MudText></td>
+                    <td class="top-issue">
+                        @if (row.TopIssue is { } top)
+                        {
+                            <MudText Typo="Typo.body2" Color="@Format.HealthColor(top.Level)">@top.Message</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">–</MudText>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</MudPaper>
+
+<MudGrid Spacing="3">
+    @* ── Needs attention ──────────────────────────────────── *@
+    <MudItem xs="12" lg="7">
+        <MudPaper Outlined="true" Class="pa-4 full-height">
+            <MudText Typo="Typo.h6" Class="mb-2">Needs attention</MudText>
+            @if (_data.NeedsAttention.Count == 0)
+            {
+                <div class="empty-state">
+                    <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Nothing right now.</MudText>
+                </div>
+            }
+            else
+            {
+                <MudList T="string" Dense="true" Padding="false">
+                    @foreach (AttentionItemDto item in _data.NeedsAttention)
+                    {
+                        <MudListItem T="string" Href="@(item.Issue.Url ?? $"/projects/{item.ProjectSlug}")" Target="@(item.Issue.Url is null ? null : "_blank")">
+                            <div class="d-flex align-center gap-3">
+                                <MudIcon Icon="@Format.IssueIcon(item.Issue.Level)" Color="@Format.IssueColor(item.Issue.Level)" Size="Size.Small" />
+                                <div>
+                                    <MudText Typo="Typo.body2">@item.Issue.Message</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.ProjectName · @item.Issue.Category</MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </MudItem>
+
+    @* ── Running now ──────────────────────────────────────── *@
+    <MudItem xs="12" lg="5">
+        <MudPaper Outlined="true" Class="pa-4 full-height">
+            <MudText Typo="Typo.h6" Class="mb-2">Running now</MudText>
+            @if (_data.RunningNow.Count == 0)
+            {
+                <div class="empty-state">
+                    <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Color="Color.Default" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No workflows running.</MudText>
+                </div>
+            }
+            else
+            {
+                <MudList T="string" Dense="true" Padding="false">
+                    @foreach (ActiveRunDto item in _data.RunningNow)
+                    {
+                        <MudListItem T="string" Href="@item.Run.Url" Target="_blank">
+                            <div class="d-flex align-center gap-3">
+                                <RunStatusIcon Run="item.Run" />
+                                <div>
+                                    <MudText Typo="Typo.body2">@item.ProjectName · @item.Run.WorkflowName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Run.Title · @item.Run.Branch · started @Format.Ago(item.Run.CreatedUtc, NowUtc)</MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private AtAGlanceDto _data = default!;
+    private SummaryTilesDto _tiles = default!;
+
+    protected override void LoadData()
+    {
+        _data = Dashboard.GetAtAGlance();
+        _tiles = _data.Tiles;
+    }
+}

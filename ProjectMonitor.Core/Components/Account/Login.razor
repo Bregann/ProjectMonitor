@@ -1,0 +1,91 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@attribute [ExcludeFromInteractiveRouting]
+@layout EmptyLayout
+@using System.Security.Claims
+@using System.Security.Cryptography
+@using System.Text
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using ProjectMonitor.Domain.Enums
+@using ProjectMonitor.Domain.Interfaces.Helpers
+@inject IEnvironmentalSettingHelper EnvironmentalSettingHelper
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in · Project Monitor</PageTitle>
+
+<main class="login">
+    <div class="login-card">
+        <div class="login-brand">
+            <span class="login-dot"></span>
+            <h1>Project Monitor</h1>
+        </div>
+
+        <EditForm Model="Input!" FormName="login" OnValidSubmit="SignIn" method="post">
+            <label for="password">Password</label>
+            <InputText id="password" type="password" @bind-Value="Input!.Password" autocomplete="current-password" autofocus />
+
+            @if (_error is not null)
+            {
+                <p class="login-error" role="alert">@_error</p>
+            }
+
+            <button type="submit">Sign in</button>
+        </EditForm>
+
+        @if (EnvironmentalSettingHelper.TryGetEnvironmentalSettingValue(EnvironmentalSettingEnum.DashboardPassword) is null)
+        {
+            <p class="login-error">No dashboard password is set yet: add a DashboardPassword row to the EnvironmentalSettings table.</p>
+        }
+    </div>
+</main>
+
+@code {
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private LoginModel? Input { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+    }
+
+    private async Task SignIn()
+    {
+        string? expected = EnvironmentalSettingHelper.TryGetEnvironmentalSettingValue(EnvironmentalSettingEnum.DashboardPassword);
+
+        if (expected is null || !PasswordMatches(Input?.Password ?? "", expected))
+        {
+            // Slow down guessing a little
+            await Task.Delay(500);
+            _error = "That password isn't right.";
+            return;
+        }
+
+        ClaimsIdentity identity = new([new Claim(ClaimTypes.Name, "owner")], CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = true });
+
+        // Only redirect back within this site
+        string target = ReturnUrl is { Length: > 0 } && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//") ? ReturnUrl : "/";
+        Navigation.NavigateTo(target, forceLoad: true);
+    }
+
+    private static bool PasswordMatches(string provided, string expected)
+    {
+        byte[] a = SHA256.HashData(Encoding.UTF8.GetBytes(provided));
+        byte[] b = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
+        return CryptographicOperations.FixedTimeEquals(a, b);
+    }
+
+    private sealed class LoginModel
+    {
+        public string? Password { get; set; }
+    }
+}

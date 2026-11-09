@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true" Class="app-bar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="() => _drawerOpen = !_drawerOpen" aria-label="Toggle menu" />
+        <MudText Typo="Typo.h6" Class="ml-2 app-title">Project Monitor</MudText>
+        <MudSpacer />
+        <LastUpdated />
+        <MudTooltip Text="Sign out">
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/logout" aria-label="Sign out" />
+        </MudTooltip>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Variant="DrawerVariant.Responsive" Class="app-drawer">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="py-6 px-4 px-md-8">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    Something went wrong. <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#7c9cff",
+            // Used for muted text throughout (Color.Secondary), so keep it a soft grey
+            Secondary = "#9aa3b2",
+            Background = "#0f1218",
+            Surface = "#171b23",
+            DrawerBackground = "#12161d",
+            AppbarBackground = "#12161d",
+            AppbarText = "#e6e9ef",
+            TextPrimary = "#e6e9ef",
+            TextSecondary = "#9aa3b2",
+            LinesDefault = "#262c37",
+            TableLines = "#262c37",
+            Divider = "#262c37",
+            Success = "#3fb950",
+            Warning = "#d29922",
+            Error = "#f85149",
+            Info = "#58a6ff",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography { FontFamily = ["Inter", "system-ui", "sans-serif"] },
+        },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "10px" },
+    };
+}

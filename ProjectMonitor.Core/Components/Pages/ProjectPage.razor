@@ -1,0 +1,362 @@
+@page "/projects/{Slug}"
+@inherits DashboardComponentBase
+
+@if (_details is null)
+{
+    <PageTitle>Not found · Project Monitor</PageTitle>
+    <MudAlert Severity="Severity.Warning">There's no project called "@Slug". Check the Monitor:Projects list in appsettings.json.</MudAlert>
+    return;
+}
+
+<PageTitle>@_details.Name · Project Monitor</PageTitle>
+
+@* ── Header ─────────────────────────────────────────────────── *@
+<div class="d-flex align-start justify-space-between flex-wrap gap-3 mb-6">
+    <div>
+        <div class="d-flex align-center gap-3">
+            <MudText Typo="Typo.h4" Class="page-title">@_details.Name</MudText>
+            <HealthChip Level="_details.Health.Level" HasData="_details.Health.HasData" />
+        </div>
+        @if (_details.Description is not null)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@_details.Description</MudText>
+        }
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <MudButton Href="@($"/manage?project={_details.Slug}")" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Tune">Manage</MudButton>
+    @if (_github is not null)
+    {
+            <MudButton Href="@_github.RepositoryUrl" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Custom.Brands.GitHub">Repository</MudButton>
+            <MudButton Href="@($"{_github.RepositoryUrl}/actions")" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.PlayCircleOutline">Actions</MudButton>
+            @if (_github.DependencyDashboard is { } dashboard)
+            {
+                <MudButton Href="@dashboard.Url" Target="_blank" Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Filled.Update">Dependency Dashboard</MudButton>
+            }
+    }
+    </div>
+</div>
+
+@if (_details.GitHubError is not null)
+{
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4">@_details.GitHubError</MudAlert>
+}
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" TabPanelsClass="pt-4" Outlined="true">
+    @* ── Issues ───────────────────────────────────────────────── *@
+    <MudTabPanel Text="Issues" BadgeData="@(_details.WarningCount > 0 ? _details.WarningCount : null)" BadgeColor="Color.Warning">
+        @if (_details.Health.Issues.Count == 0)
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@(_details.Health.HasData ? "No issues." : "Waiting for the first checks to finish.")</MudText>
+            </div>
+        }
+        else
+        {
+            <MudPaper Outlined="true">
+                <MudList T="string" Dense="true" Padding="false">
+                    @foreach (HealthIssue issue in _details.Health.Issues)
+                    {
+                        <MudListItem T="string" Href="@issue.Url" Target="_blank">
+                            <div class="d-flex align-center gap-3">
+                                <MudIcon Icon="@Format.IssueIcon(issue.Level)" Color="@Format.IssueColor(issue.Level)" Size="Size.Small" />
+                                <div>
+                                    <MudText Typo="Typo.body2">@issue.Message</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@issue.Category</MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        }
+    </MudTabPanel>
+
+    @* ── Services ─────────────────────────────────────────────── *@
+    <MudTabPanel Text="Services">
+        @if (_details.Endpoints.Count == 0)
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.Language" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">No websites or APIs are monitored for this project. <MudLink Href="@($"/manage?project={_details.Slug}")" Typo="Typo.body2">Add a Website / API check</MudLink>.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudPaper Outlined="true" Class="overflow-hidden">
+                <MudSimpleTable Dense="true" Elevation="0">
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Response</th>
+                            <th>24h</th>
+                            <th>7 days</th>
+                            <th>Last 24 hours</th>
+                            <th>Checked</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (EndpointStatus endpoint in _details.Endpoints)
+                        {
+                            <tr>
+                                <td>
+                                    <MudText Typo="Typo.body2" Class="font-weight-medium">@endpoint.Name</MudText>
+                                    <MudLink Href="@endpoint.Url" Target="_blank" Typo="Typo.caption" Color="Color.Secondary">@endpoint.Url</MudLink>
+                                </td>
+                                <td>
+                                    @if (endpoint.IsUp is null)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text">Not checked yet</MudChip>
+                                    }
+                                    else if (endpoint.IsUp == true)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Up</MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudTooltip Text="@(endpoint.Error ?? "")">
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Error" Icon="@Icons.Material.Filled.Error">
+                                                Down@(endpoint.DownSinceUtc is { } since ? $" for {Format.Duration(NowUtc - since)}" : "")
+                                            </MudChip>
+                                        </MudTooltip>
+                                    }
+                                </td>
+                                <td class="nowrap">@(endpoint.ResponseTimeMs is int ms ? $"{ms} ms" : "–")@(endpoint.StatusCode is int code ? $" · {code}" : "")</td>
+                                <td>@Format.Percent(endpoint.Uptime24h)</td>
+                                <td>@Format.Percent(endpoint.Uptime7d)</td>
+                                <td><UptimeStrip History="endpoint.History" /></td>
+                                <td><MudText Typo="Typo.body2" Color="Color.Secondary">@Format.Ago(endpoint.LastCheckedUtc, NowUtc)</MudText></td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        }
+    </MudTabPanel>
+
+    @* ── Checks (heartbeats and reported values) ─────────────── *@
+    <MudTabPanel Text="Checks" BadgeData="@(_failingChecks > 0 ? _failingChecks : null)" BadgeColor="Color.Error">
+        @if (_details.Checks.Count == 0 && _details.LatestValues.Count == 0)
+        {
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    This project doesn't report any values yet. <MudLink Href="@($"/manage?project={_details.Slug}")" Typo="Typo.body2">Add a heartbeat or value check</MudLink>
+                    and send values to <code>POST /api/report</code>.
+                </MudText>
+            </div>
+        }
+        else
+        {
+            @if (_details.Checks.Count > 0)
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden mb-6">
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead>
+                            <tr><th>Status</th><th>Check</th><th>Rule</th><th>Current value</th><th>Reported</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (CheckStatus check in _details.Checks)
+                            {
+                                <tr>
+                                    <td class="nowrap">
+                                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="@Format.HealthColor(check.Level)" Icon="@Format.HealthIcon(check.Level)" Class="ma-0">
+                                            @(check.Level == HealthLevel.Healthy ? "Passing" : Format.HealthText(check.Level))
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@check.Name</MudText>
+                                        @if (check.Level != HealthLevel.Healthy)
+                                        {
+                                            <MudText Typo="Typo.caption" Color="@Format.HealthColor(check.Level)">@check.Message</MudText>
+                                        }
+                                    </td>
+                                    <td><MudText Typo="Typo.body2" Color="Color.Secondary">@check.Rule</MudText></td>
+                                    <td><code>@(check.CurrentValue ?? "–")</code></td>
+                                    <td class="nowrap">@Format.Ago(check.LastReportedUtc, NowUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">
+                Latest reported values · last report @Format.Ago(_details.LastReportUtc, NowUtc)
+            </MudText>
+            @if (_details.LatestValues.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">Nothing reported yet.</MudText>
+            }
+            else
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden">
+                    <MudSimpleTable Dense="true" Elevation="0">
+                        <thead>
+                            <tr><th>Name</th><th>Value</th><th>Reported</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (ReportedValueInfo value in _details.LatestValues)
+                            {
+                                <tr>
+                                    <td><code>@value.Key</code></td>
+                                    <td>@value.Value</td>
+                                    <td class="nowrap"><MudTooltip Text="@Format.LocalText(value.ReportedAtUtc)">@Format.Ago(value.ReportedAtUtc, NowUtc)</MudTooltip></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+        }
+    </MudTabPanel>
+
+    @if (_github is not null)
+    {
+        @* ── Actions ──────────────────────────────────────────── *@
+        <MudTabPanel Text="Actions" BadgeData="@(_github.ActiveRuns.Count > 0 ? _github.ActiveRuns.Count : null)" BadgeColor="Color.Info">
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">Latest on @_github.DefaultBranch</MudText>
+            <MudGrid Spacing="2" Class="mb-6">
+                @foreach (WorkflowRunInfo run in _github.LatestRunPerWorkflow)
+                {
+                    <MudItem xs="12" sm="6" lg="3">
+                        <MudPaper Outlined="true" Class="pa-3 d-flex align-center gap-3">
+                            <RunStatusIcon Run="run" Size="Size.Medium" />
+                            <div class="min-w-0">
+                                <MudText Typo="Typo.body2" Class="font-weight-medium text-truncate">@run.WorkflowName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@Format.RunStatus(run).Text · @Format.Ago(run.UpdatedUtc, NowUtc)</MudText>
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Color="Color.Secondary" Class="mb-2">Recent runs</MudText>
+            <MudPaper Outlined="true" Class="overflow-hidden">
+                <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                    <thead>
+                        <tr><th></th><th>Workflow</th><th>Title</th><th>Branch</th><th>Trigger</th><th>When</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (WorkflowRunInfo run in _github.RecentRuns)
+                        {
+                            <tr>
+                                <td><RunStatusIcon Run="run" /></td>
+                                <td>@run.WorkflowName</td>
+                                <td><MudLink Href="@run.Url" Target="_blank" Typo="Typo.body2">@run.Title</MudLink></td>
+                                <td><code>@run.Branch</code></td>
+                                <td>@run.Event</td>
+                                <td class="nowrap"><MudTooltip Text="@Format.LocalText(run.CreatedUtc)">@Format.Ago(run.CreatedUtc, NowUtc)</MudTooltip></td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudPaper>
+        </MudTabPanel>
+
+        @* ── Pull requests ────────────────────────────────────── *@
+        <MudTabPanel Text="Pull requests" BadgeData="@(_github.OpenPullRequests.Count > 0 ? _github.OpenPullRequests.Count : null)" BadgeColor="Color.Primary">
+            @if (_github.OpenPullRequests.Count == 0)
+            {
+                <div class="empty-state">
+                    <MudIcon Icon="@Icons.Material.Filled.MergeType" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No open pull requests.</MudText>
+                </div>
+            }
+            else
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden">
+                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                        <thead>
+                            <tr><th>#</th><th>Title</th><th>Type</th><th>Author</th><th>Opened</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (PullRequestInfo pr in _github.OpenPullRequests)
+                            {
+                                <tr>
+                                    <td>@pr.Number</td>
+                                    <td><MudLink Href="@pr.Url" Target="_blank" Typo="Typo.body2">@pr.Title</MudLink></td>
+                                    <td>
+                                        @if (pr.IsRenovate)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Text">Dependency update</MudChip>
+                                        }
+                                        @if (pr.IsDraft)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text">Draft</MudChip>
+                                        }
+                                    </td>
+                                    <td>@pr.Author</td>
+                                    <td class="nowrap">@Format.Ago(pr.CreatedUtc, NowUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        @* ── Security ─────────────────────────────────────────── *@
+        <MudTabPanel Text="Security" BadgeData="@(_github.SecurityAlerts.Count > 0 ? _github.SecurityAlerts.Count : null)" BadgeColor="@(_github.SecurityAlerts.Any(a => a.Severity is "critical") ? Color.Error : Color.Warning)">
+            @if (_github.SecurityAlertsError is not null)
+            {
+                <MudAlert Severity="Severity.Info">@_github.SecurityAlertsError</MudAlert>
+            }
+            else if (_github.SecurityAlerts.Count == 0)
+            {
+                <div class="empty-state">
+                    <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Success" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">No open vulnerability alerts.</MudText>
+                </div>
+            }
+            else
+            {
+                <MudPaper Outlined="true" Class="overflow-hidden">
+                    <MudSimpleTable Dense="true" Hover="true" Elevation="0">
+                        <thead>
+                            <tr><th>Severity</th><th>Package</th><th>Issue</th><th>Where</th><th>Fixed in</th><th>Found</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (SecurityAlertInfo alert in _github.SecurityAlerts)
+                            {
+                                <tr>
+                                    <td><MudChip T="string" Size="Size.Small" Color="@Format.SeverityColor(alert.Severity)">@alert.Severity</MudChip></td>
+                                    <td>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@alert.Package</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@alert.Ecosystem@(alert.Relationship is null ? "" : $" · {alert.Relationship}")</MudText>
+                                    </td>
+                                    <td><MudLink Href="@alert.Url" Target="_blank" Typo="Typo.body2">@alert.Summary</MudLink></td>
+                                    <td><code>@alert.ManifestPath</code></td>
+                                    <td>@(alert.FixedIn ?? "No fix yet")</td>
+                                    <td class="nowrap">@Format.Ago(alert.CreatedUtc, NowUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+        </MudTabPanel>
+    }
+</MudTabs>
+
+@code {
+    [Parameter]
+    public string Slug { get; set; } = "";
+
+    private ProjectDetailsDto? _details;
+    private GitHubSnapshot? _github;
+    private int _failingChecks;
+
+    protected override void OnParametersSet()
+    {
+        LoadData();
+    }
+
+    protected override void LoadData()
+    {
+        _details = Dashboard.GetProjectDetails(Slug);
+        _github = _details?.GitHub;
+        _failingChecks = _details?.Checks.Count(x => x.Level > HealthLevel.Healthy) ?? 0;
+    }
+}

@@ -1,0 +1,16 @@
+@{
+    (string icon, Color color, string text) = Format.RunStatus(Run);
+}
+<MudTooltip Text="@($"{Run.WorkflowName}: {text} · {Format.LocalText(Run.UpdatedUtc)}")">
+    <a href="@Run.Url" target="_blank" rel="noopener" class="run-icon @(Run.IsActive ? "spinning" : "")">
+        <MudIcon Icon="@icon" Color="@color" Size="@Size" />
+    </a>
+</MudTooltip>
+
+@code {
+    [Parameter, EditorRequired]
+    public WorkflowRunInfo Run { get; set; } = default!;
+
+    [Parameter]
+    public Size Size { get; set; } = Size.Small;
+}
